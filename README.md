@@ -1,4 +1,4 @@
-# 🦀 WorkClaw — The Autonomous Freelancer Escrow Engine
+# 🏆 WorkClaw - The Autonomous Freelancer Escrow Engine
 
 > **"Get paid the second your work is done. Automatically. On-chain."**
 
@@ -7,97 +7,119 @@
 [![ERC-8004](https://img.shields.io/badge/Identity-ERC--8004-purple)](https://8004scan.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## What is WorkClaw?
+## The Problem
+58% of freelancers globally experience non-payment or delayed payment. That's $15B/year lost because clients ghost, delay approvals, or dispute quality to avoid paying. The money that SHOULD be in the freelancer's pocket sits idle in a bank account.
 
-WorkClaw is an AI-powered freelancer escrow platform where:
-1. **Client** deposits payment into a smart contract escrow on Mantle
-2. **WorkClaw Agent** (RealClaw/OpenClaw + Byreal Agent Skills) deploys those funds into a Byreal CLMM LP position — earning yield while the project runs
-3. **Freelancer** submits deliverables (IPFS hash)
-4. **AI Agent** (Gemini 2.5 Flash) verifies the deliverable matches the job scope
-5. **Payment + yield** releases **instantly and automatically** on approval
-6. Every AI decision is logged permanently to **ERC-8004** on Mantle (auditable, on-chain)
+## The Solution: Yield-Generating Escrow
+WorkClaw solves two problems at once:
+1. **For Freelancers:** You get paid automatically the second AI verifies your work is done. No invoices. No waiting 60 days.
+2. **For Clients:** The escrowed payment earns DeFi yield (via Byreal CLMM) while the project is being worked on. Clients actually make money by locking up funds.
 
-## The Problem We Solve
+Traditional: Client pays -> money sits in bank -> freelancer delivers -> client manually approves -> freelancer paid (60 days later)
 
-- **58% of freelancers** experience non-payment or delayed payment
-- **$15B/year** lost globally to late payments
-- **40%** wait more than 30 days after delivery
+**WorkClaw**: Client deposits -> AI deploys to Byreal CLMM (earning yield) -> Freelancer delivers -> AI verifies deliverable -> INSTANT release -> Yield split between client and freelancer. All decisions are permanently logged on-chain.
 
-WorkClaw makes "chasing payment" impossible. The AI doesn't sleep, can't be pressured, and executes in seconds.
+## System Architecture
 
-## Architecture
-
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                      WorkClaw Frontend (React)                      │
+│  Post Job - Submit Deliverable - Agent Reasoning Panel -            │
+│  Live Yield Tracker - ERC-8004 Trust Score - Dispute Interface      │
+└────────┬───────────────────────────────────┬───────────────────────┘
+         │                                   │
+┌────────▼────────────────┐    ┌─────────────▼──────────────────────┐
+│  WorkClaw Agent         │    │  ERC-8004 Registry (Mantle)        │
+│                         │    │                                    │
+│  Skills modules:        │    │  - Agent Identity NFT              │
+│  - byreal-agent-skills  │    │  - Freelancer reputation score     │
+│    (CLMM + Swap)        │    │  - Client reputation score         │
+│  - deliverable-verifier │    │  - Every decision hash logged      │
+│  - escrow-manager       │    │  - Dispute history on-chain        │
+│  - yield-optimizer      │    └────────────────────────────────────┘
+│  - dispute-arbiter      │
+└────────┬────────────────┘
+         │  byreal-cli calls / API wrapping
+┌────────▼────────────────────────────────────────────────────────────┐
+│                    Mantle L2 Smart Contracts                        │
+│                                                                     │
+│  ┌──────────────────────────┐   ┌───────────────────────────────┐   │
+│  │  WorkEscrow.sol          │   │  AgentLedger.sol              │   │
+│  │  ─────────────────────   │   │  (ERC-8004 companion)         │   │
+│  │  - job creation          │   │  ─────────────────────────    │   │
+│  │  - fund deposit          │   │  - logDecision()              │   │
+│  │  - yield strategy config │   │  - getReputation()            │   │
+│  │  - milestone tracking    │   │  - logDispute()               │   │
+│  │  - agent-triggered       │   │  - getTrustScore()            │   │
+│  │    release/dispute       │   └───────────────────────────────┘   │
+│  └──────────┬───────────────┘                                       │
+└─────────────┼───────────────────────────────────────────────────────┘
+              │ funds bridged to Solana for yield
+┌─────────────▼───────────────────────────────────────────────────────┐
+│                    Byreal DEX / Solana                              │
+│                                                                     │
+│  ┌──────────────────────┐   ┌────────────────────────────────────┐  │
+│  │  Byreal CLMM Pool    │   │  Byreal Swap                       │  │
+│  │  - Escrow capital    │   │  - Client token -> USDC            │  │
+│  │    earns LP yield    │   │  - Yield claimed -> split          │  │
+│  │  - APY on USDC       │   │    client / freelancer             │  │
+│  └──────────────────────┘   └────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
-Frontend (React/Vite)
-    ↓
-Backend API (Node.js / Express)
-    ↓
-WorkClaw Agent (Byreal CLI + Gemini AI)
-    ├── byreal-cli pools/swap/positions (CLMM yield)
-    └── Gemini 2.5 Flash (deliverable verification)
-    ↓
-Mantle Sepolia Testnet
-    ├── WorkEscrow.sol (escrow + yield tracking)
-    └── AgentLedger.sol (ERC-8004 decision log)
-```
 
-## Tech Stack
+## How It Works
 
-| Layer | Technology |
-|-------|-----------|
-| Smart Contracts | Solidity 0.8.24 + Hardhat |
-| Blockchain | Mantle Sepolia (Chain ID: 5003) |
-| AI Agent Framework | Byreal Agent Skills CLI |
-| DeFi Yield | Byreal CLMM (Solana) |
-| AI Verifier | Google Gemini 2.5 Flash (free tier) |
-| Backend | Node.js + Express + ethers.js |
-| Frontend | React + Vite |
-| File Storage | IPFS (via web3.storage / nft.storage) |
-| Identity | ERC-8004 Agent NFT |
+### Phase 1: Escrow & Yield Deployment
+1. Client creates a job on the frontend and deposits USDC into `WorkEscrow.sol` (Mantle).
+2. The Node.js backend listens for the `JobCreated` event.
+3. The WorkClaw Agent bridges/deploys the funds via Byreal to a stablecoin CLMM pool to start earning yield immediately.
+4. The action is logged to `AgentLedger.sol` on Mantle.
 
-## Setup Instructions
+### Phase 2: Autonomous Delivery Verification
+1. Freelancer finishes the work and submits an IPFS hash/link of the deliverable.
+2. The agent fetches the work and evaluates it against the initial scope using our custom prompts via Gemini.
+3. If approved, the agent closes the CLMM position, grabs the principal + yield, and triggers the `agentRelease` function on Mantle.
+4. Funds and generated yield are split and distributed instantly in a single transaction.
 
-### Prerequisites
-- Node.js >= 18
-- npm >= 9
+### Phase 3: Unbiased Dispute Arbitration
+If a client or freelancer hits the "Dispute" button, the agent steps in. It reviews the initial scope, the deliverable, and communication logs. It then issues a split decision (e.g., 70% refund to client, 30% partial payment to freelancer) and records the reasoning hash on-chain so everyone knows exactly why the decision was made.
 
-### 1. Install Byreal CLIs
+## Tech Stack Deep Dive
+- **Smart Contracts:** Solidity, Hardhat, deployed on Mantle Sepolia (Chain ID 5003). `WorkEscrow.sol` locks the funds, and `AgentLedger.sol` handles the strict ERC-8004 identity logging.
+- **Backend / Agent Engine:** Node.js, Express, `ethers.js`. Handles real-time blockchain event listening via WebSockets and acts as the brain for the autonomous WorkClaw agent.
+- **DeFi Integration:** Byreal CLI/API. Used for swapping and depositing the escrow cash into concentrated liquidity market makers (CLMM) for maximum safe APY.
+- **Frontend:** React, Vite. Live yield ticked running via custom hook calculating real-time APY. Responsive, dark-mode glassmorphism design.
+
+## Quick Start
+
+### 1. Contracts
 ```bash
-npm install -g @byreal-io/byreal-cli
-npm install -g @byreal-io/byreal-perps-cli
+cd contracts
+npm install
+npx hardhat run scripts/deploy-local.js --network mantleTestnet
 ```
 
-### 2. Setup Byreal Wallet
+### 2. Backend Agent
 ```bash
-byreal-cli setup
+cd backend
+npm install
+# Add your .env vars (RPC URL, Gemini API Key, Contract Addresses)
+npm run dev
 ```
 
-### 3. Clone & Install Dependencies
+### 3. Frontend UI
 ```bash
-git clone <repo-url>
-cd workclaw
-
-# Smart contracts
-cd contracts && npm install
-
-# Backend
-cd ../backend && npm install
-
-# Frontend  
-cd ../frontend && npm install
+cd frontend
+npm install
+npm run dev
 ```
 
-### 4. Configure Environment Variables
-```bash
-# backend/.env
-GEMINI_API_KEY=your_google_ai_studio_key
-MANTLE_RPC_URL=https://rpc.sepolia.mantle.xyz
-AGENT_PRIVATE_KEY=your_agent_wallet_private_key
-WORK_ESCROW_ADDRESS=deployed_contract_address
-AGENT_LEDGER_ADDRESS=deployed_contract_address
+## Hackathon Tracks Targeted
+- **Agentic Economy**: Native integration with Byreal for yield generation through autonomous execution.
+- **Grand Champion**: Solves a massive real-world problem ($15B lost wages) by utilizing a novel "Yield-Generating Escrow" concept.
 
-# contracts/.env
-PRIVATE_KEY=your_deployer_private_key
+---
+*Built for the 2026 DoraHacks Web3/AI Turing Test Hackathon.*
 MANTLE_RPC_URL=https://rpc.sepolia.mantle.xyz
 ```
 
