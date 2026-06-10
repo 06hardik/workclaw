@@ -1,25 +1,37 @@
-# 🏆 WorkClaw - The Autonomous Freelancer Escrow Engine
+<div align="center">
+  <img src="https://raw.githubusercontent.com/workclaw/workclaw/main/frontend/public/favicon.svg" alt="WorkClaw Logo" width="120" />
+  <h1>🦀 WorkClaw</h1>
+  <h3>The Autonomous Freelancer Escrow Engine</h3>
+  <p><em>Get paid the second your work is done. Automatically. On-chain.</em></p>
+  
+  [![Mantle](https://img.shields.io/badge/Mantle-Sepolia%20Testnet-00E5CC?style=for-the-badge)](https://explorer.sepolia.mantle.xyz)
+  [![Byreal](https://img.shields.io/badge/Powered%20by-Byreal%20Agent%20Skills-blue?style=for-the-badge)](https://byreal.io)
+  [![ERC-8004](https://img.shields.io/badge/Identity-ERC--8004-purple?style=for-the-badge)](https://8004scan.io)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+</div>
 
-> **"Get paid the second your work is done. Automatically. On-chain."**
+<br/>
 
-[![Mantle](https://img.shields.io/badge/Mantle-Sepolia%20Testnet-00E5CC)](https://explorer.sepolia.mantle.xyz)
-[![Byreal](https://img.shields.io/badge/Powered%20by-Byreal%20Agent%20Skills-blue)](https://byreal.io)
-[![ERC-8004](https://img.shields.io/badge/Identity-ERC--8004-purple)](https://8004scan.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+## 🚨 The Problem
 
-## The Problem
-58% of freelancers globally experience non-payment or delayed payment. That's $15B/year lost because clients ghost, delay approvals, or dispute quality to avoid paying. The money that SHOULD be in the freelancer's pocket sits idle in a bank account.
+Over **58% of freelancers globally** experience non-payment, severely delayed payments, or arbitrary disputes. That represents roughly **$15 Billion annually** in lost wages because clients ghost, drag out approvals, or dispute quality simply to avoid paying. Meanwhile, capital meant for freelancers sits idle in traditional bank accounts.
 
-## The Solution: Yield-Generating Escrow
-WorkClaw solves two problems at once:
-1. **For Freelancers:** You get paid automatically the second AI verifies your work is done. No invoices. No waiting 60 days.
-2. **For Clients:** The escrowed payment earns DeFi yield (via Byreal CLMM) while the project is being worked on. Clients actually make money by locking up funds.
+## 💡 The WorkClaw Solution: Yield-Generating Escrow
 
-Traditional: Client pays -> money sits in bank -> freelancer delivers -> client manually approves -> freelancer paid (60 days later)
+WorkClaw fundamentally redesigns the freelance economy by solving two problems simultaneously:
 
-**WorkClaw**: Client deposits -> AI deploys to Byreal CLMM (earning yield) -> Freelancer delivers -> AI verifies deliverable -> INSTANT release -> Yield split between client and freelancer. All decisions are permanently logged on-chain.
+1. **For Freelancers (Guaranteed, Instant Pay):** You get paid automatically the second our AI Agent verifies your work meets the agreed-upon criteria. No invoices. No waiting 60 days.
+2. **For Clients (Capital Efficiency):** The escrowed payment generates DeFi yield (via Byreal CLMM integration) while the freelancer completes the project. Clients actually earn money by locking up funds securely.
 
-## System Architecture
+### The Paradigm Shift
+* **Traditional Model:** Client pays -> money sits in bank -> freelancer delivers -> client manually approves -> freelancer is paid (60 days later).
+* **WorkClaw Model:** Client deposits -> AI deploys to Byreal CLMM (earning yield) -> Freelancer delivers -> AI Agent verifies deliverable -> INSTANT release -> Yield is split between client and freelancer. **All decisions are permanently logged on-chain via ERC-8004.**
+
+---
+
+## 🏗️ System Architecture
+
+WorkClaw operates across an advanced tech stack, utilizing AI agents to bridge DeFi yield generation and real-world gig economy transactions.
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -33,11 +45,10 @@ Traditional: Client pays -> money sits in bank -> freelancer delivers -> client 
 │                         │    │                                    │
 │  Skills modules:        │    │  - Agent Identity NFT              │
 │  - byreal-agent-skills  │    │  - Freelancer reputation score     │
-│    (CLMM + Swap)        │    │  - Client reputation score         │
-│  - deliverable-verifier │    │  - Every decision hash logged      │
-│  - escrow-manager       │    │  - Dispute history on-chain        │
-│  - yield-optimizer      │    └────────────────────────────────────┘
-│  - dispute-arbiter      │
+│  - deliverable-verifier │    │  - Client reputation score         │
+│  - escrow-manager       │    │  - Every decision hash logged      │
+│  - yield-optimizer      │    │  - Dispute history on-chain        │
+│  - dispute-arbiter      │    └────────────────────────────────────┘
 └────────┬────────────────┘
          │  byreal-cli calls / API wrapping
 ┌────────▼────────────────────────────────────────────────────────────┐
@@ -67,43 +78,50 @@ Traditional: Client pays -> money sits in bank -> freelancer delivers -> client 
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## How It Works
+---
+
+## ⚙️ How It Works
 
 ### Phase 1: Escrow & Yield Deployment
-1. Client creates a job on the frontend and deposits USDC into `WorkEscrow.sol` (Mantle).
-2. The Node.js backend listens for the `JobCreated` event.
-3. The WorkClaw Agent bridges/deploys the funds via Byreal to a stablecoin CLMM pool to start earning yield immediately.
-4. The action is logged to `AgentLedger.sol` on Mantle.
+1. A Client creates a job on the frontend and deposits USDC into the `WorkEscrow.sol` smart contract deployed on the Mantle Network.
+2. The Node.js backend Agent listens for the on-chain `JobCreated` event.
+3. The WorkClaw Agent bridges and deploys the funds via **Byreal** to a stablecoin CLMM pool to begin generating yield immediately.
+4. This action is permanently logged to `AgentLedger.sol` via ERC-8004.
 
 ### Phase 2: Autonomous Delivery Verification
-1. Freelancer finishes the work and submits an IPFS hash/link of the deliverable.
-2. The agent fetches the work and evaluates it against the initial scope using our custom prompts via Gemini.
-3. If approved, the agent closes the CLMM position, grabs the principal + yield, and triggers the `agentRelease` function on Mantle.
-4. Funds and generated yield are split and distributed instantly in a single transaction.
+1. The Freelancer finishes the work and submits an IPFS hash or verifiable link of the deliverable.
+2. The WorkClaw Agent evaluates the deliverable against the initial scope using fine-tuned Gemini prompts.
+3. Upon approval, the agent automatically closes the CLMM position, retrieves the principal + yield, and executes the `agentRelease` function on Mantle.
+4. Funds and generated yield are split and distributed instantly in a single, atomic transaction.
 
 ### Phase 3: Unbiased Dispute Arbitration
-If a client or freelancer hits the "Dispute" button, the agent steps in. It reviews the initial scope, the deliverable, and communication logs. It then issues a split decision (e.g., 70% refund to client, 30% partial payment to freelancer) and records the reasoning hash on-chain so everyone knows exactly why the decision was made.
+If a client or freelancer initiates a dispute, the agent reviews the initial scope, the submitted deliverable, and communication logs. It then issues a mathematically unbiased split decision (e.g., 70% refund to client, 30% partial payment to freelancer). The reasoning hash is recorded on-chain, ensuring absolute transparency.
 
-## Tech Stack Deep Dive
-- **Smart Contracts:** Solidity, Hardhat, deployed on Mantle Sepolia (Chain ID 5003). `WorkEscrow.sol` locks the funds, and `AgentLedger.sol` handles the strict ERC-8004 identity logging.
-- **Backend / Agent Engine:** Node.js, Express, `ethers.js`. Handles real-time blockchain event listening via WebSockets and acts as the brain for the autonomous WorkClaw agent.
-- **DeFi Integration:** Byreal CLI/API. Used for swapping and depositing the escrow cash into concentrated liquidity market makers (CLMM) for maximum safe APY.
-- **Frontend:** React, Vite. Live yield ticked running via custom hook calculating real-time APY. Responsive, dark-mode glassmorphism design.
+---
 
-## Quick Start
+## 💻 Tech Stack Deep Dive
 
-### 1. Contracts
+* **Smart Contracts:** Solidity, Hardhat, deployed on **Mantle Sepolia** (Chain ID 5003). `WorkEscrow.sol` securely locks funds, while `AgentLedger.sol` handles strict ERC-8004 identity logging.
+* **Backend / Agent Engine:** Node.js, Express, `ethers.js`. Handles real-time blockchain event listening via WebSockets and acts as the brain for the autonomous WorkClaw agent.
+* **DeFi Integration:** **Byreal CLI/API**. Used for swapping and deploying escrow capital into Concentrated Liquidity Market Makers (CLMM) for optimized, safe APY.
+* **Frontend:** React, Vite, Tailwind CSS. Features live yield tracking running via custom hooks calculating real-time APY. Fully responsive, premium dark-mode glassmorphism design.
+
+---
+
+## 🚀 Quick Start Guide
+
+### 1. Smart Contracts
 ```bash
 cd contracts
 npm install
-npx hardhat run scripts/deploy-local.js --network mantleTestnet
+npx hardhat run scripts/deploy.js --network mantle-sepolia
 ```
 
-### 2. Backend Agent
+### 2. Backend Agent Engine
 ```bash
 cd backend
 npm install
-# Add your .env vars (RPC URL, Gemini API Key, Contract Addresses)
+# Configure your .env variables (RPC URL, Gemini API Key, Contract Addresses)
 npm run dev
 ```
 
@@ -114,46 +132,13 @@ npm install
 npm run dev
 ```
 
-## Hackathon Tracks Targeted
-- **Agentic Economy**: Native integration with Byreal for yield generation through autonomous execution.
-- **Grand Champion**: Solves a massive real-world problem ($15B lost wages) by utilizing a novel "Yield-Generating Escrow" concept.
-
 ---
-*Built for the 2026 DoraHacks Web3/AI Turing Test Hackathon.*
-MANTLE_RPC_URL=https://rpc.sepolia.mantle.xyz
-```
 
-### 5. Deploy Contracts
-```bash
-cd contracts
-npx hardhat run scripts/deploy.js --network mantle-sepolia
-```
+## 🏆 Hackathon Tracks Targeted
 
-### 6. Run Backend
-```bash
-cd backend
-npm run dev
-```
-
-### 7. Run Frontend
-```bash
-cd frontend
-npm run dev
-```
-
-## Deployed Contracts (Mantle Sepolia)
-
-| Contract | Address |
-|----------|---------|
-| WorkEscrow.sol | TBD after deployment |
-| AgentLedger.sol | TBD after deployment |
-
-## Hackathon Track
+* **Agentic Economy:** Native integration with Byreal for yield generation through completely autonomous agent execution.
+* **Grand Champion:** Solves a massive, quantifiable real-world problem ($15B lost wages) by pioneering the novel concept of "Yield-Generating Escrow".
 
 **Turing Test Hackathon 2026 — Agentic Wallets & Economy (Sponsored by Byreal)**
 
-Built for: RealClaw Real-Life Expansion — taking Byreal Agent Skills beyond DeFi into real-world freelance payment infrastructure.
-
-## One-Line Pitch
-
-*"WorkClaw: The AI agent that holds your payment in yield-bearing escrow and releases it automatically the second your work is done."*
+*Built for: RealClaw Real-Life Expansion — taking Byreal Agent Skills beyond DeFi into real-world freelance payment infrastructure.*
