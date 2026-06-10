@@ -34,48 +34,50 @@ WorkClaw fundamentally redesigns the freelance economy by solving two problems s
 WorkClaw operates across an advanced tech stack, utilizing AI agents to bridge DeFi yield generation and real-world gig economy transactions.
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                      WorkClaw Frontend (React)                      │
-│  Post Job - Submit Deliverable - Agent Reasoning Panel -            │
-│  Live Yield Tracker - ERC-8004 Trust Score - Dispute Interface      │
-└────────┬───────────────────────────────────┬───────────────────────┘
-         │                                   │
-┌────────▼────────────────┐    ┌─────────────▼──────────────────────┐
-│  WorkClaw Agent         │    │  ERC-8004 Registry (Mantle)        │
-│                         │    │                                    │
-│  Skills modules:        │    │  - Agent Identity NFT              │
-│  - byreal-agent-skills  │    │  - Freelancer reputation score     │
-│  - deliverable-verifier │    │  - Client reputation score         │
-│  - escrow-manager       │    │  - Every decision hash logged      │
-│  - yield-optimizer      │    │  - Dispute history on-chain        │
-│  - dispute-arbiter      │    └────────────────────────────────────┘
-└────────┬────────────────┘
-         │  byreal-cli calls / API wrapping
-┌────────▼────────────────────────────────────────────────────────────┐
-│                    Mantle L2 Smart Contracts                        │
-│                                                                     │
-│  ┌──────────────────────────┐   ┌───────────────────────────────┐   │
-│  │  WorkEscrow.sol          │   │  AgentLedger.sol              │   │
-│  │  ─────────────────────   │   │  (ERC-8004 companion)         │   │
-│  │  - job creation          │   │  ─────────────────────────    │   │
-│  │  - fund deposit          │   │  - logDecision()              │   │
-│  │  - yield strategy config │   │  - getReputation()            │   │
-│  │  - milestone tracking    │   │  - logDispute()               │   │
-│  │  - agent-triggered       │   │  - getTrustScore()            │   │
-│  │    release/dispute       │   └───────────────────────────────┘   │
-│  └──────────┬───────────────┘                                       │
-└─────────────┼───────────────────────────────────────────────────────┘
-              │ funds bridged to Solana for yield
-┌─────────────▼───────────────────────────────────────────────────────┐
-│                    Byreal DEX / Solana                              │
-│                                                                     │
-│  ┌──────────────────────┐   ┌────────────────────────────────────┐  │
-│  │  Byreal CLMM Pool    │   │  Byreal Swap                       │  │
-│  │  - Escrow capital    │   │  - Client token -> USDC            │  │
-│  │    earns LP yield    │   │  - Yield claimed -> split          │  │
-│  │  - APY on USDC       │   │    client / freelancer             │  │
-│  └──────────────────────┘   └────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           WorkClaw Frontend (React/Vite)                        │
+│ ┌──────────────────────┐ ┌──────────────────────┐ ┌───────────────────────────┐ │
+│ │  Client Dashboard    │ │ Freelancer Workspace │ │  AI Agent Reasoning Panel │ │
+│ │  - Post Jobs         │ │ - Find Gigs          │ │  - Live Verification Logs │ │
+│ │  - Deposit Escrow    │ │ - Submit Deliverables│ │  - Dispute Chat Interface │ │
+│ │  - Track Yield (APY) │ │ - Track Reputation   │ │  - Real-time Yield Ticker │ │
+│ └──────────┬───────────┘ └──────────┬───────────┘ └─────────────┬─────────────┘ │
+└────────────┼────────────────────────┼───────────────────────────┼───────────────┘
+             │                        │                           │
+┌────────────▼────────────────────────▼───────────────────────────▼───────────────┐
+│                           WorkClaw Backend (Node.js/Express)                    │
+│ ┌──────────────────────┐ ┌──────────────────────┐ ┌───────────────────────────┐ │
+│ │ Web2 Job Matchmaking │ │ Chat & Proposal Sys  │ │ Event Listeners / WebSockets│ │
+│ │ - Upwork-style algos │ │ - Real-time messaging│ │ - Monitors Blockchain events│ │
+│ └──────────┬───────────┘ └──────────┬───────────┘ └─────────────┬─────────────┘ │
+└────────────┼────────────────────────┼───────────────────────────┼───────────────┘
+             │                        │                           │
+┌────────────▼────────────────────────▼───────────────────────────▼───────────────┐
+│                     WorkClaw Autonomous AI Agent Core                           │
+│ ┌──────────────────────┐ ┌──────────────────────┐ ┌───────────────────────────┐ │
+│ │ Deliverable Verifier │ │ Yield Optimizer      │ │ Dispute Arbiter           │ │
+│ │ - Gemini-powered     │ │ - Byreal Integration │ │ - Unbiased resolution     │ │
+│ │ - Auto-approvals     │ │ - CLMM deployment    │ │ - Transparent reasoning   │ │
+│ └──────────┬───────────┘ └──────────┬───────────┘ └─────────────┬─────────────┘ │
+└────────────┼────────────────────────┼───────────────────────────┼───────────────┘
+             │                        │                           │
+┌────────────▼────────────────────────▼───────────────────────────▼───────────────┐
+│                    On-Chain State & Logic (Mantle L2)                           │
+│ ┌──────────────────────┐ ┌──────────────────────┐ ┌───────────────────────────┐ │
+│ │ WorkEscrow.sol       │ │ AgentLedger.sol      │ │ ERC-8004 Registry         │ │
+│ │ - Holds Client USDC  │ │ - Logs AI decisions  │ │ - Agent Identity NFT      │ │
+│ │ - Agent-triggered pay│ │ - Hashes deliverables│ │ - User Reputation Scores  │ │
+│ └──────────┬───────────┘ └──────────┬───────────┘ └─────────────┬─────────────┘ │
+└────────────┼────────────────────────┼───────────────────────────┼───────────────┘
+             │                        │                           │
+┌────────────▼────────────────────────▼───────────────────────────▼───────────────┐
+│                 Cross-Chain Yield Generation via Byreal (Solana)                │
+│ ┌──────────────────────┐ ┌──────────────────────┐ ┌───────────────────────────┐ │
+│ │ Byreal Cross-Bridge  │ │ Byreal Swap          │ │ Byreal CLMM Pool          │ │
+│ │ - Escrow routed to   │ │ - Token conversion   │ │ - Generates APY on Escrow │ │
+│ │   Solana ecosystem   │ │ - Claim & split yield│ │ - Zero-risk stablecoins   │ │
+│ └──────────────────────┘ └──────────────────────┘ └───────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
