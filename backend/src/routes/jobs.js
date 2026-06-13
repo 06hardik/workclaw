@@ -1,5 +1,6 @@
 import express from "express";
 import { JobPosting, User } from "../models/index.js";
+import { getMockUSDCContract, getClientSigner } from "../config/blockchain.js";
 
 const router = express.Router();
 
@@ -79,6 +80,23 @@ router.post("/", async (req, res) => {
 
   } catch (err) {
     console.error("POST /jobs error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── POST /api/jobs/faucet/claim — Claim 10,000 mock USDC (Demo only) ─────────
+router.post("/faucet/claim", async (req, res) => {
+  try {
+    const signer = getClientSigner();
+    const mockUSDC = getMockUSDCContract(signer);
+    
+    // Call faucet on the smart contract
+    const tx = await mockUSDC.faucet();
+    await tx.wait();
+    
+    res.json({ success: true, message: "10,000 wcUSDC claimed successfully!" });
+  } catch (err) {
+    console.error("POST /faucet/claim error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
