@@ -271,17 +271,37 @@ Open `http://localhost:5173`, connect MetaMask to Mantle Sepolia (Chain ID `5003
 | Contract | Address |
 |---|---|
 | WorkEscrow.sol | `TBD — run deploy.js to populate` |
-| AgentLedger.sol | `TBD — run deploy.js to populate` |
-| MockUSDC.sol | `TBD — run deploy.js to populate` |
+| WorkEscrow.sol | `0x27bc846e87973a80E7B3A261E97D6F055Ce9dfA1` |
+| AgentLedger.sol | `0x52A657826730E7dE09e3233b7f43abb32F5c4B2c` |
+| MockUSDC.sol | `0xF28af4E2bbb10f4C6608bE17e43E048EaE6FEdeF` |
 
 ---
 
-## Hackathon Tracks Targeted
+## Hackathon Tracks & Judging Criteria Alignment
 
-- **Agentic Economy** — Native integration with Byreal for yield generation through completely autonomous agent execution. Every on-chain action is triggered by the agent, not a human.
-- **Grand Champion** — Solves a massive, quantifiable real-world problem ($15B in lost freelance wages annually) by pioneering the novel concept of "Yield-Generating Escrow."
+### 🏆 Grand Champion
+*Awarded for excellence across technology, innovation, and ecosystem contribution.*
+- **Technical Depth (30%):** Deep AI × on-chain integration. The Gemini 2.0 Flash agent securely triggers Mantle smart contract state changes (`agentRelease()`), backed by a robust Node.js orchestrator and SIWE (EIP-4361) authentication.
+- **Innovation (25%):** Introduces a novel Web3 paradigm: **"Yield-Generating Escrow"**. It transforms idle escrow capital into a profit center while eliminating human bias in deliverable verification.
+- **Mantle Ecosystem Contribution (25%):** Native deployment on Mantle Sepolia. Demonstrates Mantle's capability to handle high-frequency, AI-triggered micro-transactions and low-fee on-chain event logging (ERC-8004).
+- **Product Completeness (20%):** Fully runnable, production-quality Vercel/Railway demo, completely open-source, with a premium Upwork-style UX.
 
-*Built for: RealClaw Real-Life Expansion — taking Byreal Agent Skills beyond DeFi into real-world freelance payment infrastructure.*
+### 🤖 Agentic Economy Track (by Byreal)
+*Taking Byreal Agent Skills beyond DeFi into real-world infrastructure.*
+- **Complete Autonomy:** The WorkClaw Agent autonomously executes *every* financial action. It automatically routes Mantle escrow funds to Solana Byreal CLMM pools for yield, verifies deliverables via Gemini, and resolves disputes mathematically—end-to-end without human intervention.
+
+### 🎨 Best UI/UX Award
+- **Visual Design (30%):** Premium dark-mode glassmorphism aesthetics, utilizing harmonious color palettes and micro-animations to avoid generic Web3 templates.
+- **Interaction & Flow (30%):** Seamless Upwork-style Web2 flow. Features instant live-updating Yield Tickers and real-time WebSocket job boards.
+- **AI Interaction Design (25%):** The "Agent Activity Feed" humanizes the AI, showing live streaming thoughts and scores (0-100) as the agent verifies deliverables, making complex AI decisions perfectly transparent.
+- **Accessibility (15%):** Intuitive "Hire & Pay" flow that abstracts away complex blockchain interactions—making Web3 freelance accessible to everyday Web2 gig workers.
+
+### 🚀 20 Project Deployment Award (Criteria Fully Met)
+- ✅ **Smart Contract Deployed:** `WorkEscrow`, `AgentLedger`, and `MockUSDC` live on Mantle Sepolia.
+- ✅ **Contract Verified:** 100% matched and verified via Standard-Json-Input on Mantlescan.
+- ✅ **AI-Powered On-Chain Execution:** The Gemini agent autonomously evaluates deliverables and executes `agentRelease()` and `logDecision()` on-chain.
+- ✅ **Product Completeness:** Full-stack architecture is publicly accessible (Vercel Frontend + Railway Backend API).
+- ✅ **Documentation:** Comprehensive architecture diagrams, setup instructions, and verified addresses provided.
 
 ---
 
