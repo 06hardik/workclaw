@@ -1,4 +1,5 @@
-const API_BASE = "/api";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+const API_BASE = `${BACKEND_URL}/api`;
 
 function getAuthHeaders() {
   const wallet = localStorage.getItem("wc_wallet");
@@ -104,7 +105,10 @@ export function connectWS() {
     return wsInstance;
   }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  wsInstance = new WebSocket(`${protocol}//${window.location.host}/ws`);
+  const wsUrl = import.meta.env.VITE_BACKEND_URL 
+    ? import.meta.env.VITE_BACKEND_URL.replace(/^http/, 'ws') + '/ws'
+    : `${protocol}//${window.location.host}/ws`;
+  wsInstance = new WebSocket(wsUrl);
   wsInstance.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data);
