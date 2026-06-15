@@ -1,0 +1,11 @@
+{
+  "network": "mantle-sepolia",
+  "chainId": "5003",
+  "AgentLedger": "0x52A657826730E7dE09e3233b7f43abb32F5c4B2c",
+  "WorkEscrow": "0x27bc846e87973a80E7B3A261E97D6F055Ce9dfA1",
+  "MockUSDC": "0xF28af4E2bbb10f4C6608bE17e43E048EaE6FEdeF",
+  "agentAddress": "0x4295F3aA79a491b515CB6cdA44c08245723eb585",
+  "agentNFTId": 1,
+  "deployer": "0xc5359d5d9eb1Fb70020DA95a75b19DC896f5De66",
+  "deployedAt": "2026-06-14T08:02:33.845Z"
+}
