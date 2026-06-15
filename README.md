@@ -160,6 +160,18 @@ If a client or freelancer triggers a dispute, the agent independently reviews th
 
 ---
 
+## Deployed Contracts (Mantle Sepolia Testnet)
+
+All smart contracts are fully deployed and verified on the Mantle Sepolia Testnet (Chain ID `5003`).
+
+| Contract | Address | Explorer Link |
+|---|---|---|
+| **AgentLedger** | `0x52A657826730E7dE09e3233b7f43abb32F5c4B2c` | [View on Mantlescan](https://explorer.sepolia.mantle.xyz/address/0x52A657826730E7dE09e3233b7f43abb32F5c4B2c) |
+| **MockUSDC** | `0xF28af4E2bbb10f4C6608bE17e43E048EaE6FEdeF` | [View on Mantlescan](https://explorer.sepolia.mantle.xyz/address/0xF28af4E2bbb10f4C6608bE17e43E048EaE6FEdeF) |
+| **WorkEscrow** | `0x27bc846e87973a80E7B3A261E97D6F055Ce9dfA1` | [View on Mantlescan](https://explorer.sepolia.mantle.xyz/address/0x27bc846e87973a80E7B3A261E97D6F055Ce9dfA1) |
+
+---
+
 ## Quick Start
 
 ### Prerequisites
