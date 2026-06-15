@@ -170,6 +170,11 @@ All smart contracts are fully deployed and verified on the Mantle Sepolia Testne
 | **MockUSDC** | `0xF28af4E2bbb10f4C6608bE17e43E048EaE6FEdeF` | [View on Mantlescan](https://explorer.sepolia.mantle.xyz/address/0xF28af4E2bbb10f4C6608bE17e43E048EaE6FEdeF) |
 | **WorkEscrow** | `0x27bc846e87973a80E7B3A261E97D6F055Ce9dfA1` | [View on Mantlescan](https://explorer.sepolia.mantle.xyz/address/0x27bc846e87973a80E7B3A261E97D6F055Ce9dfA1) |
 
+### Live Demo & APIs
+
+- **Live Frontend (Vercel):** [https://workclaw-beta.vercel.app](https://workclaw-beta.vercel.app/)
+- **Live Backend API (Railway):** [https://workclaw-production-50fe.up.railway.app](https://workclaw-production-50fe.up.railway.app/)
+
 ---
 
 ## Quick Start
