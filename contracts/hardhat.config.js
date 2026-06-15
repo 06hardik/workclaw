@@ -42,11 +42,28 @@ module.exports = {
     },
     hardhat: {
       chainId: 31337,
-      // Use the same accounts the backend expects in demo mode
       accounts: {
         accountsBalance: "10000000000000000000000",
       },
     },
+  },
+  etherscan: {
+    apiKey: {
+      "mantle-sepolia": process.env.MANTLE_EXPLORER_API_KEY || "no-api-key",
+    },
+    customChains: [
+      {
+        network: "mantle-sepolia",
+        chainId: 5003,
+        urls: {
+          apiURL: "https://explorer.sepolia.mantle.xyz/api",
+          browserURL: "https://explorer.sepolia.mantle.xyz",
+        },
+      },
+    ],
+  },
+  sourcify: {
+    enabled: false,
   },
   paths: {
     artifacts: "./artifacts",
