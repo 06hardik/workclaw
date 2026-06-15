@@ -1,0 +1,15 @@
+{
+  "name": "workclaw",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WorkClaw - Autonomous Freelancer Escrow Engine. Web3 marketplace with Byreal yield-generating escrow and AI-verified deliverables.",
+  "scripts": {
+    "install:all": "npm install --prefix contracts && npm install --prefix backend && npm install --prefix frontend",
+    "compile": "npm run compile --prefix contracts",
+    "test:contracts": "npm test --prefix contracts",
+    "deploy:local": "npm run deploy:local --prefix contracts",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend"
+  },
+  "license": "MIT"
+}
