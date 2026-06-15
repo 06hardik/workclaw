@@ -1,0 +1,23 @@
+{
+  "name": "workclaw-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network hardhat",
+    "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:mantle": "hardhat run scripts/deploy.js --network mantle-sepolia",
+    "seed": "hardhat run scripts/seed.js --network localhost"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "dotenv": "^16.4.5",
+    "solc": "^0.8.24"
+  }
+}
