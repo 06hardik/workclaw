@@ -35,11 +35,11 @@ export default function Navbar() {
   };
 
   return (
-    <nav style={{ background: "white", borderBottom: "1px solid var(--gray-200)", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 3px rgba(0,0,0,.06)" }}>
+    <nav className="glass-nav" style={{ position: "sticky", top: 0, zIndex: 100 }}>
       <div className="container" style={{ display: "flex", alignItems: "center", height: 64, gap: 32 }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: "1.6rem" }}>🦀</span>
-          <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.25rem", color: "var(--gray-900)", letterSpacing: "-0.5px" }}>WorkClaw</span>
+          <span style={{ fontSize: "1.65rem", filter: "drop-shadow(0 0 8px rgba(16, 185, 129, 0.4))" }}>🦀</span>
+          <span className="text-gradient" style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.35rem", letterSpacing: "-0.5px" }}>WorkClaw</span>
         </Link>
 
         <div className="flex gap-2 hide-mobile" style={{ flex: 1 }}>
@@ -50,8 +50,8 @@ export default function Navbar() {
           <NavLink to="/agent" active={location.pathname === "/agent"}>Agent Activity</NavLink>
         </div>
 
-        <div className="hide-mobile" style={{ display: "flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%)", padding: "5px 12px", borderRadius: "var(--radius-full)", fontSize: "0.75rem", fontWeight: 600, color: "#00d4ff" }}>
-          <span style={{ fontSize: "0.65rem" }}>⚡</span>
+        <div className="hide-mobile" style={{ display: "flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, rgba(13, 27, 42, 0.6) 0%, rgba(26, 58, 92, 0.6) 100%)", border: "1px solid rgba(0, 212, 255, 0.2)", padding: "5px 12px", borderRadius: "var(--radius-full)", fontSize: "0.75rem", fontWeight: 700, color: "#00d4ff", boxShadow: "0 0 10px rgba(0, 212, 255, 0.15)" }}>
+          <span style={{ fontSize: "0.65rem", animation: "pulse 1.5s infinite" }}>⚡</span>
           Byreal Yield Active
         </div>
 
@@ -64,10 +64,10 @@ export default function Navbar() {
             <div style={{ position: "relative" }}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px 6px 6px", border: "1.5px solid var(--gray-200)", borderRadius: "var(--radius-full)", background: "white", cursor: "pointer", transition: "all .15s" }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px 6px 6px", border: "1.5px solid var(--gray-200)", borderRadius: "var(--radius-full)", background: "var(--gray-100)", cursor: "pointer", transition: "all .15s", color: "var(--gray-800)" }}
               >
                 <Avatar name={user.name} address={wallet} size="sm" />
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--gray-700)" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--gray-800)" }}>
                   {user.name || shortAddress(wallet)}
                 </span>
                 <span style={{ fontSize: "0.6rem", color: "var(--gray-400)" }}>▼</span>
@@ -76,9 +76,9 @@ export default function Navbar() {
               {menuOpen && (
                 <>
                   <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 199 }} />
-                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-lg)", minWidth: 200, overflow: "hidden", zIndex: 200 }}>
-                    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--gray-100)" }}>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{user.name || "Anonymous"}</div>
+                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", background: "var(--gray-100)", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-lg)", minWidth: 200, overflow: "hidden", zIndex: 200 }}>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--gray-200)" }}>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--gray-800)" }}>{user.name || "Anonymous"}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--gray-500)", marginTop: 2 }}>{shortAddress(wallet)}</div>
                       <div className="badge badge-green mt-2">{user.role}</div>
                     </div>
@@ -92,8 +92,8 @@ export default function Navbar() {
                         {label}
                       </Link>
                     ))}
-                    <div style={{ borderTop: "1px solid var(--gray-100)", padding: "4px 0" }}>
-                      <button onClick={handleLogout} style={{ width: "100%", padding: "10px 16px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.875rem", color: "var(--red)" }}>
+                    <div style={{ borderTop: "1px solid var(--gray-200)", padding: "4px 0" }}>
+                      <button onClick={handleLogout} style={{ width: "100%", padding: "10px 16px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: "0.875rem", color: "var(--red)", fontWeight: 600 }}>
                         🚪 Sign Out
                       </button>
                     </div>

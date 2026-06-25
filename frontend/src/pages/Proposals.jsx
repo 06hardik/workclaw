@@ -20,24 +20,24 @@ export default function Proposals() {
 
   return (
     <div className="container-sm page">
-      <h1 className="mb-2">My Proposals</h1>
+      <h1 className="mb-2" style={{ fontSize: "28px", color: "var(--text-primary)" }}>My proposals</h1>
       <p className="text-muted mb-6">Track the status of every proposal you've submitted.</p>
 
       {loading ? (
         <div className="flex-col gap-3">{Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}</div>
       ) : proposals.length === 0 ? (
-        <EmptyState icon="📝" title="No proposals yet" subtitle="Browse open jobs and submit your first proposal." action={<Link to="/jobs" className="btn btn-primary">Find Work</Link>} />
+        <EmptyState icon="📝" title="No proposals yet" subtitle="Browse open jobs and submit your first proposal." action={<Link to="/jobs" className="btn btn-primary">Find work</Link>} />
       ) : (
         <div className="flex-col gap-3">
           {proposals.map((p) => (
             <Link key={p.id} to={`/jobs/${p.job_id}`} className="card" style={{ display: "block" }}>
               <div className="flex" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                 <div>
-                  <div className="font-semibold mb-1">{p.job_title}</div>
+                  <div className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{p.job_title}</div>
                   <div className="text-sm text-muted">Client: {p.client_name || "Anonymous"}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{p.bid_amount} {p.bid_token}</div>
+                  <div className="font-bold font-mono" style={{ color: "var(--text-primary)" }}>{p.bid_amount} {p.bid_token}</div>
                   <StatusBadge status={p.status} />
                 </div>
               </div>

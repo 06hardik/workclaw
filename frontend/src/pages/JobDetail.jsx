@@ -1,344 +1,305 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { getJob, submitProposal, getJobProposals, acceptProposal, rejectProposal, deleteJob, linkJobOnChain } from "../utils/api";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { Stars, StatusBadge, Avatar, EmptyState } from "../components/common/UI";
-import { shortAddress, createOnChainEscrow, assignFreelancerOnChain, ON_CHAIN_ENABLED } from "../utils/wallet";
+import { getJob, getJobProposals, submitProposal, acceptProposal } from "../utils/api";
+import { shortAddress, assignFreelancerOnChain, ON_CHAIN_ENABLED } from "../utils/wallet";
+import { StatusBadge, EmptyState } from "../components/common/UI";
+
+function timeAgo(ts) {
+  const diff = Date.now() / 1000 - ts;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function JobDetail() {
   const { id } = useParams();
-  const { user, wallet } = useAuth();
+  const { wallet, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const [job, setJob] = useState(null);
-  const [userProposal, setUserProposal] = useState(null);
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showProposalForm, setShowProposalForm] = useState(false);
 
-  const isOwner = job && wallet && job.client_address.toLowerCase() === wallet.toLowerCase();
-
-  const fetchJob = () => {
-    setLoading(true);
-    getJob(id)
-      .then((r) => { setJob(r.job); setUserProposal(r.userProposal); })
-      .catch((e) => toast(e.message, "error"))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { fetchJob(); }, [id]);
-
-  useEffect(() => {
-    if (isOwner) {
-      getJobProposals(id).then((r) => setProposals(r.proposals || [])).catch(console.error);
-    }
-  }, [isOwner, id]);
-
-  const handleDelete = async () => {
-    if (!confirm("Cancel this job posting?")) return;
-    try {
-      await deleteJob(id);
-      toast("Job cancelled", "success");
-      navigate("/dashboard");
-    } catch (e) {
-      toast(e.message, "error");
-    }
-  };
-
-  if (loading) return <div className="container page text-center"><div className="spinner" style={{ margin: "60px auto" }} /></div>;
-  if (!job) return <div className="container page"><EmptyState icon="❓" title="Job not found" /></div>;
-
-  return (
-    <div className="container page">
-      <div className="sidebar-layout" style={{ gridTemplateColumns: "1fr 340px" }}>
-        {/* Main */}
-        <div>
-          <div className="card mb-4">
-            <div className="flex" style={{ justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-              <div className="flex gap-2">
-                {job.category_icon && <span style={{ fontSize: "1.2rem" }}>{job.category_icon}</span>}
-                <span className="badge badge-gray">{job.category_name || "General"}</span>
-                <StatusBadge status={job.status} />
-              </div>
-              {isOwner && job.status === "OPEN" && (
-                <button onClick={handleDelete} className="btn btn-outline btn-sm" style={{ color: "var(--red)", borderColor: "var(--red-light)" }}>
-                  Cancel Job
-                </button>
-              )}
-            </div>
-
-            <h1 className="mb-3">{job.title}</h1>
-
-            <div className="flex gap-4 mb-4" style={{ flexWrap: "wrap" }}>
-              <Detail label="Budget" value={`${job.budget} ${job.budget_token}`} />
-              <Detail label="Proposals" value={job.proposal_count || 0} />
-              <Detail label="Posted" value={new Date(job.created_at * 1000).toLocaleDateString()} />
-              {job.expires_at && <Detail label="Deadline" value={new Date(job.expires_at * 1000).toLocaleDateString()} />}
-            </div>
-
-            <div className="separator" />
-
-            <h4 className="mb-2">Description</h4>
-            <p style={{ color: "var(--gray-700)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{job.description}</p>
-
-            {job.scope && job.scope !== job.description && (
-              <>
-                <h4 className="mb-2 mt-4">Scope & Requirements</h4>
-                <p style={{ color: "var(--gray-700)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{job.scope}</p>
-              </>
-            )}
-
-            {job.skills_required?.length > 0 && (
-              <>
-                <h4 className="mb-2 mt-4">Skills Required</h4>
-                <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
-                  {job.skills_required.map((s) => <span key={s} className="badge badge-blue">{s}</span>)}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Yield info box */}
-          <div className="card mb-4" style={{ background: "linear-gradient(135deg, #0d1b2a, #16283d)", color: "white", border: "none" }}>
-            <div className="flex gap-3">
-              <div style={{ fontSize: "1.8rem" }}>⚡</div>
-              <div>
-                <div style={{ fontWeight: 700, color: "#00d4ff", marginBottom: 4 }}>Yield-Generating Escrow</div>
-                <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,.75)", lineHeight: 1.6 }}>
-                  Once hired, the {job.budget} {job.budget_token} budget is locked in WorkEscrow.sol and
-                  deployed to a Byreal USDC-USDT CLMM pool (~18.3% APY). Yield is split 50/50 between
-                  client and freelancer when the AI agent approves the deliverable.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Proposals (client view) */}
-          {isOwner && (
-            <div className="card">
-              <h3 className="mb-4">Proposals ({proposals.length})</h3>
-              {proposals.length === 0 ? (
-                <EmptyState icon="📭" title="No proposals yet" subtitle="Freelancers will appear here once they submit proposals." />
-              ) : (
-                <div className="flex-col gap-3">
-                  {proposals.map((p) => (
-                    <ProposalCard key={p.id} proposal={p} jobStatus={job.status} onUpdate={() => { fetchJob(); getJobProposals(id).then((r) => setProposals(r.proposals || [])); }} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="flex-col gap-4">
-          <div className="card">
-            <h4 className="mb-3">About the Client</h4>
-            <div className="flex gap-3 mb-3">
-              <Avatar name={job.client_name} address={job.client_address} size="md" />
-              <div>
-                <div className="font-semibold">{job.client_name || "Anonymous"}</div>
-                <div className="text-xs text-muted">{shortAddress(job.client_address)}</div>
-              </div>
-            </div>
-            {job.client_jobs > 0 && (
-              <div className="flex gap-2 mb-2">
-                <Stars score={job.client_reputation} />
-                <span className="text-sm text-muted">{job.client_jobs} jobs completed</span>
-              </div>
-            )}
-            {job.client_headline && <p className="text-sm text-muted">{job.client_headline}</p>}
-          </div>
-
-          {!isOwner && user && job.status === "OPEN" && (
-            <div className="card">
-              {userProposal ? (
-                <div className="text-center">
-                  <div style={{ fontSize: "2rem", marginBottom: 8 }}>✅</div>
-                  <h4 className="mb-2">Proposal Submitted</h4>
-                  <p className="text-sm text-muted mb-3">
-                    You bid {userProposal.bid_amount} {userProposal.bid_token}
-                  </p>
-                  <StatusBadge status={userProposal.status} />
-                </div>
-              ) : showProposalForm ? (
-                <ProposalForm jobId={job.id} onSubmitted={() => { setShowProposalForm(false); fetchJob(); }} />
-              ) : (
-                <>
-                  <h4 className="mb-2">Interested in this job?</h4>
-                  <p className="text-sm text-muted mb-4">Submit a proposal with your cover letter and bid.</p>
-                  <button className="btn btn-primary btn-block" onClick={() => setShowProposalForm(true)}>
-                    Submit a Proposal
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {!user && job.status === "OPEN" && (
-            <div className="card text-center">
-              <p className="text-sm text-muted mb-3">Sign in with your wallet to submit a proposal.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Detail({ label, value }) {
-  return (
-    <div>
-      <div className="text-xs text-muted">{label}</div>
-      <div className="font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function ProposalForm({ jobId, onSubmitted }) {
-  const { toast } = useToast();
+  // Proposal Form State
   const [coverLetter, setCoverLetter] = useState("");
   const [bidAmount, setBidAmount] = useState("");
-  const [estimatedDays, setEstimatedDays] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [hiringId, setHiringId] = useState(null);
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    Promise.all([getJob(id), getJobProposals(id)])
+      .then(([jobRes, proposalsRes]) => {
+        setJob(jobRes.job);
+        setProposals(proposalsRes.proposals || []);
+      })
+      .catch((e) => toast(e.message, "error"))
+      .finally(() => setLoading(false));
+  }, [id, toast]);
+
+  const handleSubmitProposal = async (e) => {
     e.preventDefault();
-    if (!coverLetter.trim() || !bidAmount) {
-      toast("Please fill in cover letter and bid amount", "error");
+    if (!wallet) {
+      toast("Connect your wallet first", "error");
+      return;
+    }
+    if (!coverLetter || !bidAmount) {
+      toast("Please complete all fields", "error");
       return;
     }
     setSubmitting(true);
     try {
       await submitProposal({
-        job_id: jobId,
+        job_id: Number(id),
         cover_letter: coverLetter,
-        bid_amount: parseFloat(bidAmount),
-        bid_token: "USDC",
-        estimated_days: estimatedDays ? parseInt(estimatedDays) : null,
+        bid_amount: parseFloat(bidAmount)
       });
-      toast("Proposal submitted!", "success");
-      onSubmitted();
-    } catch (e) {
-      toast(e.message, "error");
+      toast("Proposal submitted successfully", "success");
+      // Refresh proposals
+      const res = await getJobProposals(id);
+      setProposals(res.proposals || []);
+      setCoverLetter("");
+      setBidAmount("");
+    } catch (err) {
+      toast(err.message, "error");
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="flex-col gap-3">
-      <h4>Submit Your Proposal</h4>
-      <div className="form-group">
-        <label className="form-label">Cover Letter</label>
-        <textarea className="textarea" placeholder="Explain why you're the right fit and how you'll approach this..." value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} rows={5} />
-      </div>
-      <div className="form-group">
-        <label className="form-label">Your Bid (USDC)</label>
-        <input className="input" type="number" min="0" step="0.01" placeholder="e.g. 250" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
-      </div>
-      <div className="form-group">
-        <label className="form-label">Estimated Days (optional)</label>
-        <input className="input" type="number" min="1" placeholder="e.g. 7" value={estimatedDays} onChange={(e) => setEstimatedDays(e.target.value)} />
-      </div>
-      <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-        {submitting ? <><div className="spinner spinner-sm" /> Submitting...</> : "Submit Proposal"}
-      </button>
-    </form>
-  );
-}
-
-function ProposalCard({ proposal, jobStatus, onUpdate }) {
-  const { toast } = useToast();
-  const [expanded, setExpanded] = useState(false);
-  const [hiring, setHiring] = useState(false);
-
-  const handleAccept = async () => {
-    if (!confirm(`Hire ${proposal.freelancer_name || "this freelancer"} for ${proposal.bid_amount} ${proposal.bid_token}? This will fund the on-chain escrow.`)) return;
-    setHiring(true);
+  const handleHire = async (proposal) => {
+    setHiringId(proposal.id);
     try {
-      let on_chain_job_id = null;
-
-      if (ON_CHAIN_ENABLED) {
-        toast("Approving USDC and creating on-chain escrow...", "info");
-        const { onChainJobId } = await createOnChainEscrow({
-          amount: proposal.bid_amount,
-          title: proposal.job_title || "WorkClaw Job",
-          scope: proposal.cover_letter,
-          deadlineDays: 30,
-          clientYieldBps: 5000,
-        });
-        on_chain_job_id = onChainJobId;
-
-        if (on_chain_job_id !== null) {
-          toast("Assigning freelancer on-chain...", "info");
-          await assignFreelancerOnChain(on_chain_job_id, proposal.freelancer_address);
-        }
+      let txHash = null;
+      if (ON_CHAIN_ENABLED && job.on_chain_job_id != null) {
+        toast("Assigning freelancer on-chain...", "info");
+        txHash = await assignFreelancerOnChain(job.on_chain_job_id, proposal.freelancer_address);
       }
-
-      await acceptProposal(proposal.id, { on_chain_job_id, yield_split_bps: 5000 });
-      toast("Freelancer hired! Escrow deployed to Byreal for yield generation.", "success");
-      onUpdate();
-    } catch (e) {
-      toast(e.message, "error");
+      
+      const res = await acceptProposal(proposal.id, { txHash });
+      toast("Freelancer hired successfully!", "success");
+      navigate(`/contracts/${res.contract.id}`);
+    } catch (err) {
+      console.error(err);
+      toast(err.message, "error");
     } finally {
-      setHiring(false);
+      setHiringId(null);
     }
   };
 
-  const handleReject = async () => {
-    try {
-      await rejectProposal(proposal.id);
-      toast("Proposal rejected", "info");
-      onUpdate();
-    } catch (e) {
-      toast(e.message, "error");
-    }
-  };
+  if (loading) return <div className="container page text-center"><div className="skeleton" style={{ height: "400px", width: "100%" }} /></div>;
+  if (!job) return <div className="container page"><EmptyState icon="❓" title="Job not found" /></div>;
+
+  const isClient = wallet && job.client_address.toLowerCase() === wallet.toLowerCase();
+  const myProposal = wallet && proposals.find((p) => p.freelancer_address.toLowerCase() === wallet.toLowerCase());
+  const hiredProposal = proposals.find((p) => p.status === "ACCEPTED");
+  const isEscrowLive = job.status === "ACTIVE" || job.status === "IN_PROGRESS" || job.status === "OPEN";
 
   return (
-    <div className="card card-compact" style={{ border: proposal.status === "ACCEPTED" ? "1.5px solid var(--green)" : undefined }}>
-      <div className="flex" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div className="flex gap-3" style={{ flex: 1 }}>
-          <Avatar name={proposal.freelancer_name} address={proposal.freelancer_address} size="md" />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="flex gap-2" style={{ flexWrap: "wrap", alignItems: "center" }}>
-              <span className="font-semibold">{proposal.freelancer_name || "Anonymous"}</span>
-              <span className="text-xs text-muted" style={{ fontFamily: "monospace" }}>{shortAddress(proposal.freelancer_address)}</span>
-              <StatusBadge status={proposal.status} />
-            </div>
-            {proposal.freelancer_headline && <div className="text-sm text-muted">{proposal.freelancer_headline}</div>}
-            {proposal.freelancer_bio && <div className="text-xs mt-1" style={{ color: "var(--gray-500)", fontStyle: "italic" }}>{proposal.freelancer_bio}</div>}
-            <div className="flex gap-2 mt-2">
-              <Stars score={proposal.reputation_score} />
-              <span className="text-xs text-muted">{proposal.total_jobs_completed || 0} jobs · {proposal.hourly_rate || 0} USDC/hr</span>
-            </div>
+    <div className="container page" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "32px" }}>
+      {/* Left Column - Content */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontWeight: "700", fontSize: "32px", color: "var(--text-primary)", lineHeight: "1.2", marginBottom: "16px" }}>
+            {job.title}
+          </h1>
+
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
+            <span className="font-mono" style={{ fontSize: "28px", fontWeight: "600", color: "var(--accent-lime)" }}>
+              {job.budget}
+            </span>
+            <span className="font-mono" style={{ fontSize: "16px", color: "var(--text-muted)", marginRight: "16px" }}>
+              {job.budget_token || "USDC"}
+            </span>
+
+            {isEscrowLive && (
+              <span className="badge" style={{ background: "rgba(163,255,87,0.08)", border: "1px solid rgba(163,255,87,0.2)", color: "var(--accent-lime)" }}>
+                ⚡ Yield active
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
+            <span>Posted by</span>
+            <span className="font-mono" style={{ color: "var(--text-muted)" }}>
+              {shortAddress(job.client_address)}
+            </span>
+            <span>·</span>
+            <span>{timeAgo(job.created_at)}</span>
+            <span>·</span>
+            <StatusBadge status={job.status} />
           </div>
         </div>
-        <div className="text-right" style={{ flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: "1.1rem" }}>{proposal.bid_amount} {proposal.bid_token}</div>
-          {proposal.estimated_days && <div className="text-xs text-muted">{proposal.estimated_days} days</div>}
+
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
+
+        <div>
+          <p style={{ fontFamily: "var(--font-ui)", fontSize: "15px", color: "var(--text-secondary)", lineHeight: "1.75", whiteSpace: "pre-wrap" }}>
+            {job.description}
+          </p>
         </div>
+
+        {job.skills_required && job.skills_required.length > 0 && (
+          <div>
+            <h4 style={{ fontFamily: "var(--font-ui)", fontSize: "12px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "12px" }}>
+              Required skills
+            </h4>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {job.skills_required.map((skill) => (
+                <span key={skill} className="badge badge-gray">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Client's Proposals View (If Hired/Accepted etc) */}
+        {isClient && (
+          <div style={{ marginTop: "24px" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px" }}>Submitted proposals</h3>
+            {proposals.length === 0 ? (
+              <div className="card text-center" style={{ padding: "32px 16px" }}>
+                <p style={{ color: "var(--text-muted)" }}>No proposals received yet.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {proposals.map((p) => (
+                  <div key={p.id} className="card" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className="font-mono" style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)" }}>
+                        {shortAddress(p.freelancer_address)}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span className="font-mono" style={{ fontSize: "14px", fontWeight: "600", color: "var(--accent-lime)" }}>
+                          {p.bid_amount} USDC
+                        </span>
+                        <StatusBadge status={p.status} />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: "13px", color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                      {p.cover_letter}
+                    </p>
+                    {job.status === "OPEN" && p.status === "PENDING" && (
+                      <button 
+                        onClick={() => handleHire(p)} 
+                        disabled={hiringId !== null}
+                        className="btn btn-primary btn-sm"
+                        style={{ alignSelf: "flex-end" }}
+                      >
+                        {hiringId === p.id ? "Hiring..." : "Hire freelancer"}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <p className="text-sm mt-3" style={{
-        color: "var(--gray-600)", display: expanded ? "block" : "-webkit-box",
-        WebkitLineClamp: expanded ? "unset" : 2, WebkitBoxOrient: "vertical", overflow: "hidden", cursor: "pointer"
-      }} onClick={() => setExpanded(!expanded)}>
-        {proposal.cover_letter}
-      </p>
-      {!expanded && <button className="btn btn-ghost btn-sm" onClick={() => setExpanded(true)} style={{ padding: "2px 6px" }}>Read more</button>}
-
-      {proposal.status === "PENDING" && jobStatus === "OPEN" && (
-        <div className="flex gap-2 mt-3">
-          <button className="btn btn-primary btn-sm" onClick={handleAccept} disabled={hiring}>
-            {hiring ? <><div className="spinner spinner-sm" /> Hiring...</> : "Hire Freelancer"}
-          </button>
-          <button className="btn btn-outline btn-sm" onClick={handleReject} disabled={hiring}>Decline</button>
+      {/* Right Column - Proposal Panel (Sticky) */}
+      <aside style={{
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "16px",
+        padding: "24px",
+        height: "fit-content",
+        position: "sticky",
+        top: "72px"
+      }}>
+        <div style={{ marginBottom: "20px", fontSize: "13px", color: "var(--text-secondary)" }}>
+          <span className="font-mono" style={{ fontWeight: "600", color: "var(--text-primary)" }}>{proposals.length}</span> freelancers applied
         </div>
-      )}
+
+        {/* 1. If already hired */}
+        {hiredProposal ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="card" style={{ background: "rgba(163,255,87,0.04)", border: "1px solid rgba(163,255,87,0.3)" }}>
+              <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--accent-lime)", marginBottom: "8px" }}>
+                Freelancer hired
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                Contract has been created. Funds are locked and earning yield.
+              </p>
+            </div>
+            {/* If the current user is hired or client, show links */}
+            {(isClient || (wallet && hiredProposal.freelancer_address.toLowerCase() === wallet.toLowerCase())) && (
+              <Link to={`/dashboard`} className="btn btn-outline btn-block">
+                Go to contract
+              </Link>
+            )}
+          </div>
+        ) : isClient ? (
+          <div className="card text-center" style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+              Review proposals in the left panel to assign a freelancer to this contract.
+            </p>
+          </div>
+        ) : !wallet ? (
+          <div className="card text-center" style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+              Connect your wallet to submit a proposal for this job.
+            </p>
+          </div>
+        ) : myProposal ? (
+          <div className="card" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>
+              Proposal submitted
+            </div>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", margin: "4px 0" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+              <span style={{ color: "var(--text-muted)" }}>Bid amount:</span>
+              <span className="font-mono" style={{ color: "var(--accent-lime)" }}>{myProposal.bid_amount} USDC</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+              <span style={{ color: "var(--text-muted)" }}>Status:</span>
+              <StatusBadge status={myProposal.status} />
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmitProposal} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="form-group">
+              <label className="form-label">Cover letter</label>
+              <textarea
+                className="textarea"
+                style={{ 
+                  background: "var(--bg-elevated)", 
+                  fontFamily: coverLetter ? "var(--font-ui)" : "var(--font-mono)",
+                  fontSize: "13px" 
+                }}
+                placeholder="describe your approach and relevant experience..."
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Bid amount</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  className="input input-mono"
+                  style={{ width: "100%", paddingRight: "60px" }}
+                  type="number"
+                  placeholder="0.00"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                />
+                <span className="font-mono" style={{ position: "absolute", right: "14px", top: "11px", color: "var(--text-muted)", fontSize: "13px" }}>
+                  USDC
+                </span>
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-block" style={{ height: "48px" }} disabled={submitting}>
+              {submitting ? "submitting..." : "submit proposal"}
+            </button>
+          </form>
+        )}
+      </aside>
     </div>
   );
 }

@@ -29,7 +29,7 @@ export default function App() {
         <Route path="/agent" element={<AgentActivity />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <footer style={{ borderTop: "1px solid var(--gray-200)", background: "white", padding: "24px 0", marginTop: 40 }}>
+      <footer style={{ borderTop: "1px solid var(--gray-200)", background: "var(--gray-50)", padding: "32px 0", marginTop: 40 }}>
         <div className="container text-center text-sm text-muted">
           🦀 WorkClaw — Built for Turing Test Hackathon 2026 · Agentic Economy Track · Powered by Byreal
         </div>

@@ -25,7 +25,7 @@ export default function Contracts() {
 
   return (
     <div className="container page">
-      <h1 className="mb-2">My Contracts</h1>
+      <h1 className="mb-2" style={{ fontSize: "28px", color: "var(--text-primary)" }}>My contracts</h1>
       <p className="text-muted mb-6">All your active and past agreements as a client or freelancer.</p>
 
       <div className="tabs mb-4">
@@ -45,23 +45,24 @@ export default function Contracts() {
         <div className="flex-col gap-3">
           {filtered.map((c) => {
             const isClient = c.client_address === wallet;
+            const hasYield = c.yield_client > 0 || c.yield_freelancer > 0;
             return (
-              <Link key={c.id} to={`/contracts/${c.id}`} className="card" style={{ display: "block" }}>
+              <Link key={c.id} to={`/contracts/${c.id}`} className={`card ${c.status === "ACTIVE" ? "card-yield" : ""}`} style={{ display: "block" }}>
                 <div className="flex" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                   <div>
-                    <div className="font-semibold mb-1">{c.job_title}</div>
+                    <div className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{c.job_title}</div>
                     <div className="text-sm text-muted">
-                      {isClient ? "You are the Client" : "You are the Freelancer"} ·
-                      {" "}{isClient ? `Freelancer: ${c.freelancer_name || shortAddress(c.freelancer_address)}` : `Client: ${c.client_name || shortAddress(c.client_address)}`}
+                      {isClient ? "You are the client" : "You are the freelancer"} ·
+                      {" "}{isClient ? `Freelancer: ${shortAddress(c.freelancer_address)}` : `Client: ${shortAddress(c.client_address)}`}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">{c.escrow_amount} {c.escrow_token}</div>
+                    <div className="font-bold font-mono" style={{ color: "var(--text-primary)" }}>{c.escrow_amount} {c.escrow_token}</div>
                     <StatusBadge status={c.status} />
                   </div>
                 </div>
-                {(c.yield_client > 0 || c.yield_freelancer > 0) && (
-                  <div className="text-sm mt-2" style={{ color: "var(--green-dark)" }}>
+                {hasYield && (
+                  <div className="text-sm mt-2 font-mono" style={{ color: "var(--accent-lime)", fontWeight: "500" }}>
                     ⚡ Yield generated: {(c.yield_client + c.yield_freelancer).toFixed(6)} USDC
                   </div>
                 )}

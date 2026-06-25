@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useWs } from "../context/WsContext";
 import { useToast } from "../context/ToastContext";
@@ -23,8 +23,21 @@ export default function ContractDetail() {
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
 
+  // Live yield simulation
+  const [totalYield, setTotalYield] = useState(0);
+  const [apy, setApy] = useState(18.3);
+
+  // scanning steps
+  const [scanningStep, setScanningStep] = useState(0);
+
   const fetchData = useCallback(() => {
-    getContract(id).then((r) => { setContract(r.contract); setLogs(r.logs || []); }).catch((e) => toast(e.message, "error")).finally(() => setLoading(false));
+    getContract(id)
+      .then((r) => { 
+        setContract(r.contract); 
+        setLogs(r.logs || []); 
+      })
+      .catch((e) => toast(e.message, "error"))
+      .finally(() => setLoading(false));
   }, [id, toast]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -33,21 +46,54 @@ export default function ContractDetail() {
   useEffect(() => {
     return subscribe((msg) => {
       if (msg.contractId !== id) return;
-      if (msg.type === "VERIFICATION_STARTED") setVerifying(true);
+      if (msg.type === "VERIFICATION_STARTED") {
+        setVerifying(true);
+        setScanningStep(1);
+      }
       if (["VERIFICATION_COMPLETE", "PAYMENT_RELEASED", "DISPUTE_RAISED", "DISPUTE_RESOLVED", "YIELD_DEPLOYED", "AGENT_LOG"].includes(msg.type)) {
-        setVerifying(false);
-        fetchData();
+        // Trigger scanning transitions if in verification
         if (msg.type === "VERIFICATION_COMPLETE") {
-          toast(`AI scored this deliverable ${msg.score}/100 — ${msg.approved ? "Approved ✅" : "Disputed ⚠️"}`, msg.approved ? "success" : "info");
+          setScanningStep(3);
+          setTimeout(() => {
+            setVerifying(false);
+            setScanningStep(0);
+            fetchData();
+            toast(`AI scored this deliverable ${msg.score}/100 — ${msg.approved ? "Approved ✅" : "Disputed ⚠️"}`, msg.approved ? "success" : "info");
+          }, 1500);
+        } else {
+          setVerifying(false);
+          fetchData();
+          if (msg.type === "PAYMENT_RELEASED") toast("Payment released! Funds + yield sent on-chain.", "success");
+          if (msg.type === "DISPUTE_RESOLVED") toast("Dispute resolved by AI agent.", "info");
+          if (msg.type === "YIELD_DEPLOYED") toast(`Escrow deployed to Byreal: ${msg.amountUsdc} USDC @ ${msg.apy}% APY`, "info");
         }
-        if (msg.type === "PAYMENT_RELEASED") toast("Payment released! Funds + yield sent on-chain.", "success");
-        if (msg.type === "DISPUTE_RESOLVED") toast("Dispute resolved by AI agent.", "info");
-        if (msg.type === "YIELD_DEPLOYED") toast(`Escrow deployed to Byreal: ${msg.amountUsdc} USDC @ ${msg.apy}% APY`, "info");
       }
     });
   }, [id, subscribe, fetchData, toast]);
 
-  if (loading) return <div className="container page text-center"><div className="spinner" style={{ margin: "60px auto" }} /></div>;
+  // Simulated yield counter
+  useEffect(() => {
+    if (!contract || !["ACTIVE", "SUBMITTED", "DISPUTED"].includes(contract.status)) return;
+    const escrowAmount = contract.escrow_amount || 0;
+    const perSecond = (escrowAmount * (apy / 100)) / (365 * 24 * 3600);
+    const interval = setInterval(() => {
+      setTotalYield((prev) => prev + perSecond);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [contract, apy]);
+
+  // Scanning animation timer fallback (if WebSocket verification_started occurs without WS verification_complete instantly)
+  useEffect(() => {
+    if (!verifying) return;
+    const timers = [
+      setTimeout(() => setScanningStep(1), 500),
+      setTimeout(() => setScanningStep(2), 1500),
+      setTimeout(() => setScanningStep(3), 2500)
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [verifying]);
+
+  if (loading) return <div className="container page text-center"><div className="skeleton" style={{ height: "400px", width: "100%" }} /></div>;
   if (!contract) return <div className="container page"><EmptyState icon="❓" title="Contract not found" /></div>;
 
   const isClient = contract.client_address.toLowerCase() === wallet.toLowerCase();
@@ -55,189 +101,289 @@ export default function ContractDetail() {
 
   return (
     <div className="container page">
-      <div className="sidebar-layout" style={{ gridTemplateColumns: "1fr 360px" }}>
-        <div>
-          {/* Header */}
-          <div className="card mb-4">
-            <div className="flex" style={{ justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-              <StatusBadge status={contract.status} />
-              {contract.on_chain_job_id != null && (
-                <span className="badge badge-blue">On-chain Job #{contract.on_chain_job_id}</span>
-              )}
+      <div className="sidebar-layout" style={{ gridTemplateColumns: "3.5fr 5fr 3.5fr", gap: "24px" }}>
+        
+        {/* Left Panel (30%) — Contract Metadata + Yield Engine */}
+        <div style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "16px",
+          padding: "24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px"
+        }}>
+          <div>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", letterSpacing: "1px", textTransform: "uppercase" }}>
+              CONTRACT
             </div>
-            <h1 className="mb-2">{contract.job_title}</h1>
-            <p className="text-muted mb-3">{contract.job_description}</p>
-
-            <div className="flex gap-4" style={{ flexWrap: "wrap" }}>
-              <Detail label="Escrow Amount" value={`${contract.escrow_amount} ${contract.escrow_token}`} />
-              <Detail label="Client" value={isClient ? "You" : (contract.client_name || shortAddress(contract.client_address))} />
-              <Detail label="Freelancer" value={isFreelancer ? "You" : (contract.freelancer_name || shortAddress(contract.freelancer_address))} />
-              <Detail label="Yield Split" value={`${(contract.yield_split_bps || 5000) / 100}% / ${100 - (contract.yield_split_bps || 5000) / 100}%`} />
+            <div className="font-mono" style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+              ID: {contract.id} {contract.on_chain_job_id != null && `· onchain: #${contract.on_chain_job_id}`}
             </div>
           </div>
 
-          {/* AI Verification result */}
-          {contract.ai_score !== null && contract.ai_reasoning_parsed && (
-            <div className="card mb-4">
-              <h3 className="mb-3">🤖 AI Agent Verification</h3>
-              <div className="flex gap-4" style={{ alignItems: "flex-start" }}>
-                <ScoreRing score={contract.ai_score} />
-                <div style={{ flex: 1 }}>
-                  <div className="badge mb-2" style={{
-                    background: contract.ai_reasoning_parsed.approved ? "var(--green-light)" : "var(--red-light)",
-                    color: contract.ai_reasoning_parsed.approved ? "var(--green-dark)" : "var(--red)"
-                  }}>
-                    {contract.ai_reasoning_parsed.verdict}
-                  </div>
-                  <p className="text-sm" style={{ color: "var(--gray-700)" }}>{contract.ai_reasoning_parsed.reasoning}</p>
+          <div style={{ display: "flex", width: "100%" }}>
+            <StatusBadge status={contract.status} />
+          </div>
 
-                  {contract.ai_reasoning_parsed.strengths?.length > 0 && (
-                    <div className="mt-3">
-                      <div className="text-xs font-semibold text-green mb-1">STRENGTHS</div>
-                      <ul style={{ paddingLeft: 18, fontSize: "0.85rem", color: "var(--gray-600)" }}>
-                        {contract.ai_reasoning_parsed.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                  {contract.ai_reasoning_parsed.concerns?.length > 0 && (
-                    <div className="mt-2">
-                      <div className="text-xs font-semibold text-red mb-1">CONCERNS</div>
-                      <ul style={{ paddingLeft: 18, fontSize: "0.85rem", color: "var(--gray-600)" }}>
-                        {contract.ai_reasoning_parsed.concerns.map((s, i) => <li key={i}>{s}</li>)}
-                      </ul>
-                    </div>
-                  )}
+          <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
+
+          {/* Money section */}
+          <div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Principal locked</div>
+            <div className="font-mono" style={{ fontSize: "20px", fontWeight: "600", color: "var(--text-primary)" }}>
+              {contract.escrow_amount} {contract.escrow_token}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Current APY</div>
+            <div className="font-mono" style={{ fontSize: "16px", fontWeight: "600", color: "var(--accent-lime)" }}>
+              {apy.toFixed(2)}%
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Powered by Byreal CLMM</div>
+          </div>
+
+          {/* Signature Yield Ticker centerpiece */}
+          {["ACTIVE", "SUBMITTED", "DISPUTED"].includes(contract.status) && (
+            <div style={{ 
+              display: "flex", 
+              flexDirection: "column", 
+              alignItems: "center",
+              padding: "20px 0",
+              borderTop: "1px solid var(--border-subtle)",
+              borderBottom: "1px solid var(--border-subtle)"
+            }}>
+              <span style={{ color: "var(--text-muted)", fontSize: "11px", letterSpacing: "1.5px", marginBottom: "16px", textTransform: "uppercase" }}>
+                Yield accrued
+              </span>
+
+              {/* Large yield pulse ring — 120px */}
+              <div className="yield-pulse-lg">
+                <svg viewBox="0 0 120 120" width="120" height="120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(163,255,87,0.08)" strokeWidth="2"/>
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="var(--accent-lime)" strokeWidth="2"
+                    strokeDasharray="80 246" strokeLinecap="round" style={{ opacity: 0.65 }}>
+                    <animateTransform attributeName="transform" type="rotate"
+                      from="0 60 60" to="360 60 60" dur="4s" repeatCount="indefinite"/>
+                  </circle>
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="var(--accent-cyan)" strokeWidth="2"
+                    strokeDasharray="40 246" strokeLinecap="round" style={{ opacity: 0.35 }}>
+                    <animateTransform attributeName="transform" type="rotate"
+                      from="180 60 60" to="-180 60 60" dur="6s" repeatCount="indefinite"/>
+                  </circle>
+                </svg>
+                <div className="yield-center-text">
+                  <span className="yield-amount">+{totalYield.toFixed(6)}</span>
+                </div>
+              </div>
+
+              <span style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "16px" }}>earning live</span>
+            </div>
+          )}
+
+          {/* Timeline */}
+          <div>
+            <h4 style={{ fontSize: "12px", color: "var(--text-primary)", fontWeight: "600", textTransform: "uppercase", marginBottom: "16px" }}>Contract timeline</h4>
+            <Timeline status={contract.status} />
+          </div>
+
+          <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
+
+          {/* Wallets */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+            <div>
+              <div style={{ color: "var(--text-muted)" }}>Client</div>
+              <div className="font-mono" style={{ color: "var(--text-primary)" }}>{contract.client_address}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--text-muted)" }}>Freelancer</div>
+              <div className="font-mono" style={{ color: "var(--text-primary)" }}>{contract.freelancer_address}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Panel (40%) — Deliverable & AI Verdict */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          
+          {/* Main Contract details */}
+          <div className="card">
+            <h2 style={{ fontSize: "20px", marginBottom: "8px" }}>{contract.job_title}</h2>
+            <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>{contract.job_description}</p>
+          </div>
+
+          {/* State: Awaiting submission (For Freelancer) */}
+          {isFreelancer && ["ACTIVE", "DISPUTED"].includes(contract.status) && !verifying && (
+            <SubmitDeliverableForm contract={contract} onSubmitted={fetchData} />
+          )}
+
+          {/* State: AI scoring in progress */}
+          {verifying && (
+            <div className="card text-center" style={{ padding: "40px 32px", border: "1px solid rgba(0, 229, 255, 0.25)", background: "rgba(0, 229, 255, 0.02)" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "2px solid rgba(0,229,255,0.1)", borderTopColor: "var(--accent-cyan)", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+              <h3 style={{ fontSize: "15px", color: "var(--text-primary)", marginBottom: "16px" }}>AI verification in progress</h3>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "center" }}>
+                <div style={{ fontSize: "13px", color: scanningStep >= 1 ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.3s" }}>
+                  {scanningStep >= 1 ? "✓ " : "· "}Reading deliverable...
+                </div>
+                <div style={{ fontSize: "13px", color: scanningStep >= 2 ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.3s" }}>
+                  {scanningStep >= 2 ? "✓ " : "· "}Comparing against job scope...
+                </div>
+                <div style={{ fontSize: "13px", color: scanningStep >= 3 ? "var(--text-primary)" : "var(--text-muted)", transition: "color 0.3s" }}>
+                  {scanningStep >= 3 ? "✓ " : "· "}Calculating score...
                 </div>
               </div>
             </div>
           )}
 
-          {verifying && (
-            <div className="card mb-4 text-center" style={{ background: "var(--purple-light)" }}>
-              <div className="spinner" style={{ margin: "0 auto 12px" }} />
-              <p className="font-semibold" style={{ color: "var(--purple)" }}>🤖 AI agent is verifying the deliverable...</p>
-              <p className="text-sm text-muted">Gemini is reading the job scope, proposal, and submission. This usually takes a few seconds.</p>
+          {/* State: Score Revealed (PASS / FAIL) */}
+          {contract.ai_score !== null && contract.ai_reasoning_parsed && !verifying && (
+            <div 
+              className="card" 
+              style={{ 
+                padding: "32px", 
+                textAlign: "center",
+                background: contract.ai_reasoning_parsed.approved ? "rgba(163, 255, 87, 0.03)" : "rgba(255, 71, 87, 0.03)",
+                border: `1px solid ${contract.ai_reasoning_parsed.approved ? "rgba(163, 255, 87, 0.25)" : "rgba(255, 71, 87, 0.25)"}`
+              }}
+            >
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
+                Gemini 2.0 Flash score
+              </div>
+              
+              {/* THE NUMBER (Hero moment) */}
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", margin: "16px 0" }}>
+                <span className="font-mono" style={{ fontSize: "96px", fontWeight: "900", color: contract.ai_reasoning_parsed.approved ? "var(--accent-lime)" : "var(--accent-red)", lineHeight: 1 }}>
+                  {contract.ai_score}
+                </span>
+                <span className="font-mono" style={{ fontSize: "32px", color: "var(--text-muted)" }}>/100</span>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "16px" }}>
+                <span style={{ fontSize: "18px", color: contract.ai_reasoning_parsed.approved ? "var(--accent-lime)" : "var(--accent-red)" }}>
+                  {contract.ai_reasoning_parsed.approved ? "✓" : "⚠️"}
+                </span>
+                <span style={{ fontSize: "14px", fontWeight: "600", color: contract.ai_reasoning_parsed.approved ? "var(--accent-lime)" : "var(--accent-red)" }}>
+                  {contract.ai_reasoning_parsed.approved ? "Threshold met — releasing automatically" : "Score below threshold — entering dispute"}
+                </span>
+              </div>
+
+              {/* Progress bar animation for release */}
+              {contract.ai_reasoning_parsed.approved && (
+                <div style={{ width: "100%", height: "4px", background: "rgba(163, 255, 87, 0.1)", borderRadius: "2px", overflow: "hidden", marginBottom: "20px" }}>
+                  <div style={{ 
+                    height: "100%", 
+                    width: "100%", 
+                    background: "var(--accent-lime)", 
+                    animation: "shimmer 1.5s ease-out" 
+                  }} />
+                </div>
+              )}
+
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", textAlign: "left", lineHeight: "1.6" }}>
+                {contract.ai_reasoning_parsed.reasoning}
+              </p>
             </div>
           )}
 
-          {/* Deliverable */}
+          {/* Submitted deliverable preview */}
           {contract.deliverable_content && (
-            <div className="card mb-4">
-              <h4 className="mb-2">Submitted Deliverable</h4>
-              <div className="card-compact" style={{ background: "var(--gray-50)" }}>
-                <p style={{ whiteSpace: "pre-wrap", fontSize: "0.88rem", color: "var(--gray-700)" }}>{contract.deliverable_content}</p>
+            <div className="card">
+              <h4 style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: "600", textTransform: "uppercase", marginBottom: "12px" }}>Submitted deliverable</h4>
+              <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "16px", whiteSpace: "pre-wrap", fontSize: "13px", color: "var(--text-secondary)" }}>
+                {contract.deliverable_content}
               </div>
             </div>
           )}
 
-          {/* Role-based action panels */}
-          {isFreelancer && ["ACTIVE", "DISPUTED"].includes(contract.status) && (
-            <SubmitDeliverableForm contract={contract} onSubmitted={fetchData} />
+          {/* Dispute Resolving Proposal split */}
+          {contract.status === "DISPUTED" && contract.ai_reasoning_parsed && (
+            <div className="card" style={{ background: "rgba(255, 184, 48, 0.03)", border: "1px solid rgba(255, 184, 48, 0.2)" }}>
+              <div style={{ fontSize: "11px", color: "var(--accent-amber)", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px" }}>
+                AI mediation proposed split
+              </div>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                Proposed split: <strong style={{ color: "var(--accent-amber)" }} className="font-mono">70%</strong> to client / <strong style={{ color: "var(--text-primary)" }} className="font-mono">30%</strong> to freelancer.
+              </p>
+            </div>
           )}
 
+          {/* Client Dispute Actions panel */}
           {isClient && contract.status === "DISPUTED" && (
             <DisputeActions contract={contract} onUpdate={fetchData} />
           )}
 
-          {contract.status === "DISPUTED" && isFreelancer && (
-            <div className="card mb-4" style={{ background: "var(--red-light)" }}>
-              <p className="text-sm" style={{ color: "var(--red)" }}>
-                ⚠️ The AI agent scored this deliverable below the 70/100 approval threshold. The client
-                can force-approve, request AI dispute resolution, or you can resubmit a revised deliverable above.
-              </p>
-            </div>
-          )}
-
+          {/* Client Raise Dispute manually if needed */}
           {isClient && ["ACTIVE", "SUBMITTED"].includes(contract.status) && (
             <RaiseDisputeButton contract={contract} onUpdate={fetchData} />
           )}
 
-          {(contract.status === "COMPLETED" || contract.status === "RESOLVED") && (
-            <div className="card mb-4 text-center" style={{ background: "var(--green-light)" }}>
-              <div style={{ fontSize: "2rem", marginBottom: 8 }}>🎉</div>
-              <h3 className="mb-2">Contract {contract.status === "COMPLETED" ? "Completed" : "Resolved"}</h3>
-              <p className="text-sm text-muted mb-3">
-                Principal: {contract.escrow_amount} {contract.escrow_token} ·
-                {" "}Yield to freelancer: {contract.yield_freelancer?.toFixed(6)} USDC ·
-                {" "}Yield to client: {contract.yield_client?.toFixed(6)} USDC
-              </p>
-            </div>
-          )}
-
-          {/* Agent activity feed */}
+          {/* Contract chat */}
           <ContractChat contract={contract} wallet={wallet} />
-          <AgentActivityFeed logs={logs} />
         </div>
 
-        {/* Sidebar */}
-        <div className="flex-col gap-4">
-          {["ACTIVE", "SUBMITTED", "DISPUTED"].includes(contract.status) && (
-            <YieldTicker contractId={contract.id} escrowAmount={contract.escrow_amount} />
-          )}
-
-          <div className="card">
-            <h4 className="mb-3">Contract Timeline</h4>
-            <Timeline status={contract.status} />
+        {/* Right Panel (30%) — Agent Activity Feed */}
+        <div style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "16px",
+          padding: "24px",
+          maxHeight: "680px",
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>Agent activity</h4>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="pulsing-dot" />
+              <span className="font-mono text-xs" style={{ color: "var(--accent-lime)" }}>LIVE</span>
+            </div>
           </div>
 
-          <div className="card" style={{ background: "linear-gradient(135deg, #0d1b2a, #16283d)", color: "white", border: "none" }}>
-            <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#00d4ff", marginBottom: 6 }}>ℹ️ HOW RELEASE WORKS</div>
-            <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,.75)", lineHeight: 1.6 }}>
-              When the freelancer submits work, Gemini scores it 0-100 against the job scope.
-              Score ≥ 70 → instant on-chain release of principal + yield. Score &lt; 70 → the
-              contract goes to <strong>DISPUTED</strong>, where the client can force-approve or
-              request AI-mediated dispute resolution.
-            </p>
-          </div>
+          <AgentActivityFeed logs={logs} title="" />
         </div>
       </div>
     </div>
   );
 }
 
-function Detail({ label, value }) {
-  return (
-    <div>
-      <div className="text-xs text-muted">{label}</div>
-      <div className="font-semibold">{value}</div>
-    </div>
-  );
-}
-
 function Timeline({ status }) {
   const steps = [
-    { key: "ACTIVE", label: "Escrow Funded & Yield Deployed" },
-    { key: "SUBMITTED", label: "Deliverable Submitted" },
-    { key: "VERIFIED", label: "AI Verification" },
-    { key: "COMPLETED", label: "Funds Released" },
+    { key: "CREATED", label: "Job created" },
+    { key: "ACTIVE", label: "Escrow funded" },
+    { key: "YIELD", label: "Yield started" },
+    { key: "SUBMITTED", label: "Deliverable submitted" },
+    { key: "COMPLETED", label: "Released" },
   ];
 
-  const order = ["ACTIVE", "SUBMITTED", "VERIFIED", "COMPLETED", "RESOLVED"];
+  const order = ["CREATED", "ACTIVE", "YIELD", "SUBMITTED", "COMPLETED"];
   let currentIdx = order.indexOf(status);
-  if (status === "DISPUTED") currentIdx = 2; // sits at verification stage
-  if (status === "RESOLVED") currentIdx = 3;
-  if (status === "CANCELLED") currentIdx = -1;
+  if (status === "IN_PROGRESS" || status === "ACTIVE") currentIdx = 2; // yield step
+  if (status === "SUBMITTED") currentIdx = 3;
+  if (status === "COMPLETED" || status === "RESOLVED") currentIdx = 4;
+  if (status === "DISPUTED") currentIdx = 3; // disputes sit on verification stage
 
   return (
-    <div className="flex-col gap-3">
+    <div className="timeline">
       {steps.map((step, i) => {
-        const done = i < currentIdx || (status === "COMPLETED" || status === "RESOLVED");
+        const done = i <= currentIdx || (status === "COMPLETED" || status === "RESOLVED");
         const active = i === currentIdx && !["COMPLETED", "RESOLVED"].includes(status);
-        const isDisputeStep = i === 2 && status === "DISPUTED";
+        
         return (
-          <div key={step.key} className="flex gap-3">
-            <div style={{
-              width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700,
-              background: isDisputeStep ? "var(--red-light)" : done ? "var(--green)" : active ? "var(--green-light)" : "var(--gray-100)",
-              color: isDisputeStep ? "var(--red)" : done ? "white" : active ? "var(--green-dark)" : "var(--gray-400)",
-              border: active ? "2px solid var(--green)" : "none",
-            }}>
-              {isDisputeStep ? "!" : done ? "✓" : i + 1}
+          <div key={step.key} className="timeline-item">
+            <div className={`timeline-dot ${done ? "completed" : ""} ${active ? "active" : ""}`} />
+            <div className="timeline-content">
+              <span style={{ 
+                fontSize: "13px", 
+                color: active ? "var(--text-primary)" : done ? "var(--text-secondary)" : "var(--text-muted)", 
+                fontWeight: active ? "600" : "400" 
+              }}>
+                {step.label}
+              </span>
             </div>
-            <span style={{ fontSize: "0.85rem", color: done || active || isDisputeStep ? "var(--gray-800)" : "var(--gray-400)", fontWeight: active || isDisputeStep ? 700 : 500 }}>
-              {isDisputeStep ? "Disputed — Awaiting Resolution" : step.label}
-            </span>
           </div>
         );
       })}
@@ -287,17 +433,25 @@ function SubmitDeliverableForm({ contract, onSubmitted }) {
   };
 
   return (
-    <div className="card mb-4">
-      <h4 className="mb-2">{contract.status === "DISPUTED" ? "Resubmit Deliverable" : "Submit Your Deliverable"}</h4>
-      <p className="text-sm text-muted mb-3">
-        Describe the completed work, paste links to repos/deployments/files, or include a summary
-        of what was delivered. The AI agent will compare this against the original job scope.
+    <div className="card">
+      <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "8px" }}>
+        {contract.status === "DISPUTED" ? "Resubmit deliverable" : "Submit your deliverable"}
+      </h4>
+      <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "16px" }}>
+        Paste a link or describe what you built. Gemini 2.0 Flash will score it 0–100 against the job scope.
       </p>
-      <textarea className="textarea mb-3" rows={6} placeholder="e.g. Deployed the landing page at https://... Includes hero, features section, responsive nav, and a working signup form connected to..." value={content} onChange={(e) => setContent(e.target.value)} />
       
-      <div className="flex gap-2">
+      <textarea 
+        className="textarea" 
+        style={{ minHeight: "120px", marginBottom: "16px" }}
+        placeholder="e.g. Deployed the landing page at https://... Includes hero and responsive nav..." 
+        value={content} 
+        onChange={(e) => setContent(e.target.value)} 
+      />
+      
+      <div style={{ display: "flex", gap: "10px" }}>
         <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
-          {submitting ? <><div className="spinner spinner-sm" /> Submitting...</> : "Submit for AI Verification"}
+          {submitting ? "Submitting..." : "Submit for AI review"}
         </button>
         <label className="btn btn-outline" style={{ cursor: "pointer" }}>
           <input type="file" style={{ display: "none" }} onChange={handleFileUpload} disabled={submitting} />
@@ -356,29 +510,37 @@ function DisputeActions({ contract, onUpdate }) {
   };
 
   return (
-    <div className="card mb-4" style={{ background: "#fff8e6", border: "1px solid var(--yellow)" }}>
-      <h4 className="mb-2">⚖️ Dispute Resolution Options</h4>
-      <p className="text-sm text-muted mb-3">
-        The AI scored this deliverable below 70/100. As the client, choose how to proceed:
+    <div className="card" style={{ border: "1px solid var(--accent-amber)", background: "rgba(255, 184, 48, 0.02)" }}>
+      <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--accent-amber)", marginBottom: "8px" }}>
+        ⚖️ Dispute resolution options
+      </h4>
+      <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "16px" }}>
+        Choose how to proceed:
       </p>
 
-      <div className="flex-col gap-2 mb-3">
-        <button className="btn btn-primary btn-sm" onClick={handleForceApprove} disabled={loading}>
-          ✅ Force-Approve & Release Full Payment
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+        <button className="btn btn-dark btn-block btn-sm" onClick={handleForceApprove} disabled={loading}>
+          Force-approve & release
         </button>
-        <button className="btn btn-outline btn-sm" onClick={() => setShowResolve(!showResolve)} disabled={loading}>
-          ⚖️ Request AI Dispute Resolution
+        <button className="btn btn-outline btn-block btn-sm" onClick={() => setShowResolve(!showResolve)} disabled={loading}>
+          Request AI dispute resolution
         </button>
-        <button className="btn btn-outline btn-sm" style={{ color: "var(--red)" }} onClick={handleCancel} disabled={loading}>
-          ❌ Cancel Contract & Refund
+        <button className="btn btn-danger btn-block btn-sm" onClick={handleCancel} disabled={loading}>
+          Cancel contract & refund
         </button>
       </div>
 
       {showResolve && (
-        <div className="flex-col gap-2">
-          <textarea className="textarea" rows={3} placeholder="Briefly explain why the deliverable doesn't meet requirements (optional)..." value={clientClaim} onChange={(e) => setClientClaim(e.target.value)} />
-          <button className="btn btn-dark btn-sm" onClick={handleResolve} disabled={loading}>
-            {loading ? <><div className="spinner spinner-sm" /> Resolving...</> : "Get AI Resolution & Execute"}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <textarea 
+            className="textarea" 
+            rows={3} 
+            placeholder="Briefly explain why the deliverable doesn't meet requirements..." 
+            value={clientClaim} 
+            onChange={(e) => setClientClaim(e.target.value)} 
+          />
+          <button className="btn btn-primary btn-block btn-sm" onClick={handleResolve} disabled={loading}>
+            {loading ? "Resolving..." : "Get AI resolution & execute"}
           </button>
         </div>
       )}
@@ -407,19 +569,19 @@ function RaiseDisputeButton({ contract, onUpdate }) {
 
   if (!show) {
     return (
-      <button className="btn btn-ghost btn-sm mb-4" onClick={() => setShow(true)} style={{ color: "var(--gray-500)" }}>
+      <button className="btn btn-ghost btn-sm btn-block" onClick={() => setShow(true)}>
         🚩 Raise a dispute
       </button>
     );
   }
 
   return (
-    <div className="card mb-4">
-      <h4 className="mb-2">Raise a Dispute</h4>
-      <textarea className="textarea mb-3" rows={3} placeholder="Describe the issue..." value={reason} onChange={(e) => setReason(e.target.value)} />
-      <div className="flex gap-2">
+    <div className="card">
+      <h4 style={{ fontSize: "14px", fontWeight: "600", color: "var(--accent-red)", marginBottom: "8px" }}>Raise a dispute</h4>
+      <textarea className="textarea" style={{ minHeight: "80px", marginBottom: "12px" }} placeholder="Describe the issue..." value={reason} onChange={(e) => setReason(e.target.value)} />
+      <div style={{ display: "flex", gap: "10px" }}>
         <button className="btn btn-danger btn-sm" onClick={handleRaise} disabled={loading}>
-          {loading ? <div className="spinner spinner-sm" /> : "Submit Dispute"}
+          {loading ? "Submitting..." : "Submit dispute"}
         </button>
         <button className="btn btn-ghost btn-sm" onClick={() => setShow(false)}>Cancel</button>
       </div>
@@ -489,40 +651,41 @@ function ContractChat({ contract, wallet }) {
   const renderMessageContent = (content) => {
     const imgMatch = content.trim().match(/^!\[(.*?)\]\((.*?)\)$/);
     if (imgMatch) {
-      return <img src={imgMatch[2]} alt={imgMatch[1]} style={{ maxWidth: "100%", maxHeight: 300, borderRadius: 8, display: "block" }} />;
+      return <img src={imgMatch[2]} alt={imgMatch[1]} style={{ maxWidth: "100%", maxHeight: 200, borderRadius: 8, display: "block" }} />;
     }
     const fileMatch = content.trim().match(/^\[Attached File: (.*?)\]\((.*?)\)$/);
     if (fileMatch) {
-      return <a href={fileMatch[2]} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "underline", display: "flex", alignItems: "center", gap: 6 }}>📎 {fileMatch[1]}</a>;
+      return <a href={fileMatch[2]} target="_blank" rel="noreferrer" style={{ color: "var(--accent-cyan)", textDecoration: "underline", display: "flex", alignItems: "center", gap: 6 }}>📎 {fileMatch[1]}</a>;
     }
     return content;
   };
 
   return (
-    <div className="card mb-4" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", background: "var(--gray-50)", fontWeight: 600 }}>
-        💬 Contract Chat
+    <div className="card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--bg-surface)" }}>
+      <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>
+        💬 Contract chat
       </div>
       
-      <div ref={chatRef} style={{ height: 350, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16, background: "#fff" }}>
+      <div ref={chatRef} style={{ height: 260, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12, background: "var(--bg-elevated)" }}>
         {messages.length === 0 ? (
-          <div className="text-center text-muted" style={{ margin: "auto", fontSize: "0.9rem" }}>No messages yet. Say hello!</div>
+          <div className="text-center" style={{ margin: "auto", fontSize: "12px", color: "var(--text-muted)" }}>No messages yet. Say hello!</div>
         ) : (
           messages.map(m => {
             const isMe = m.sender_address.toLowerCase() === wallet.toLowerCase();
             return (
-              <div key={m.id} style={{ alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "80%" }}>
-                <div style={{ fontSize: "0.75rem", color: "var(--gray-500)", marginBottom: 4, textAlign: isMe ? "right" : "left" }}>
-                  {isMe ? "You" : m.sender_name || shortAddress(m.sender_address)}
+              <div key={m.id} style={{ alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "85%" }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 2, textAlign: isMe ? "right" : "left" }}>
+                  {isMe ? "You" : shortAddress(m.sender_address)}
                 </div>
                 <div style={{
-                  padding: "10px 14px",
-                  borderRadius: 16,
-                  borderBottomRightRadius: isMe ? 4 : 16,
-                  borderBottomLeftRadius: !isMe ? 4 : 16,
-                  background: isMe ? "var(--green)" : "var(--gray-100)",
-                  color: isMe ? "white" : "inherit",
-                  fontSize: "0.9rem",
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  borderBottomRightRadius: isMe ? 2 : 10,
+                  borderBottomLeftRadius: !isMe ? 2 : 10,
+                  background: isMe ? "rgba(0, 229, 255, 0.12)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${isMe ? "rgba(0, 229, 255, 0.25)" : "var(--border-subtle)"}`,
+                  color: "var(--text-primary)",
+                  fontSize: "13px",
                   lineHeight: 1.4,
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word"
@@ -535,9 +698,9 @@ function ContractChat({ contract, wallet }) {
         )}
       </div>
 
-      <div style={{ padding: 16, borderTop: "1px solid var(--border)", background: "var(--gray-50)" }}>
+      <div style={{ padding: 12, borderTop: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
         <form onSubmit={handleSend} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <label className="btn btn-ghost" style={{ padding: "0 12px", cursor: "pointer", fontSize: "1.2rem", margin: 0 }}>
+          <label className="btn btn-ghost btn-sm" style={{ padding: "0 10px", cursor: "pointer", fontSize: "15px", margin: 0, minHeight: "36px" }}>
             <input type="file" style={{ display: "none" }} onChange={handleFileUpload} disabled={loading} />
             📎
           </label>
@@ -548,9 +711,9 @@ function ContractChat({ contract, wallet }) {
             value={input} 
             onChange={e => setInput(e.target.value)} 
             disabled={loading}
-            style={{ flex: 1, margin: 0 }}
+            style={{ flex: 1, margin: 0, height: "36px" }}
           />
-          <button type="submit" className="btn btn-primary" disabled={loading || !input.trim()}>
+          <button type="submit" className="btn btn-primary btn-sm" style={{ minHeight: "36px" }} disabled={loading || !input.trim()}>
             Send
           </button>
         </form>

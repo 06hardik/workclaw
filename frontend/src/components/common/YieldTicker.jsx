@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getContractYield } from "../../utils/api";
 
 export default function YieldTicker({ contractId, escrowAmount = 0, compact = false }) {
   const [totalYield, setTotalYield] = useState(0);
   const [apy, setApy] = useState(18.3);
   const [ageDays, setAgeDays] = useState(0);
-  const [ticking, setTicking] = useState(false);
-  const [pool, setPool] = useState("ByRealUSDC_USDT_Demo_Pool");
+  const [pool, setPool] = useState("Byreal USDC-USDT Pool");
   const [demoMode, setDemoMode] = useState(true);
 
   useEffect(() => {
@@ -28,14 +27,12 @@ export default function YieldTicker({ contractId, escrowAmount = 0, compact = fa
     return () => { mounted = false; clearInterval(id); };
   }, [contractId]);
 
-  // Animate micro-increment every second for visual "live" effect
+  // Animate yield live
   useEffect(() => {
     if (!escrowAmount) return;
     const perSecond = (escrowAmount * (apy / 100)) / (365 * 24 * 3600);
     const id = setInterval(() => {
       setTotalYield((prev) => prev + perSecond);
-      setTicking(true);
-      setTimeout(() => setTicking(false), 300);
     }, 1000);
     return () => clearInterval(id);
   }, [escrowAmount, apy]);
@@ -44,53 +41,70 @@ export default function YieldTicker({ contractId, escrowAmount = 0, compact = fa
 
   if (compact) {
     return (
-      <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: "0.85rem", color: "var(--green)", transition: "color .3s" }}>
-        +{fmt(totalYield)} USDC
-      </span>
+      <div className="yield-pulse-wrapper" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+        <div className="yield-pulse-sm">
+          <svg viewBox="0 0 32 32" width="32" height="32">
+            <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(163,255,87,0.08)" strokeWidth="1.5" />
+            <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(163,255,87,0.4)" strokeWidth="1.5" strokeDasharray="20 62" strokeLinecap="round">
+              <animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur="3s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+        </div>
+        <span className="font-mono text-xs" style={{ color: "var(--accent-lime)", fontWeight: "500" }}>
+          +{fmt(totalYield)}
+        </span>
+      </div>
     );
   }
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%)", borderRadius: "var(--radius-lg)", padding: "20px 24px", border: "1px solid rgba(0,212,255,.2)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+    <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "16px", padding: "20px 24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#00d4ff", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-            ⚡ Byreal Yield Earning
+          <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--accent-cyan)", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+            ⚡ Byreal Yield active
           </div>
-          <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,.5)", marginTop: 2 }}>
-            {pool} · {apy.toFixed(1)}% APY
+          <div className="font-mono" style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: 2 }}>
+            {pool}
           </div>
         </div>
-        <div style={{ background: "rgba(29,191,115,.15)", border: "1px solid rgba(29,191,115,.3)", borderRadius: "var(--radius-full)", padding: "3px 10px", fontSize: "0.72rem", fontWeight: 700, color: "#1dbf73" }}>
+        <span className="badge" style={{ background: "rgba(163,255,87,0.1)", color: "var(--accent-lime)", fontSize: "10px" }}>
           LIVE
+        </span>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "20px", margin: "16px 0" }}>
+        {/* Revolving SVGs */}
+        <div className="yield-pulse-lg" style={{ width: "64px", height: "64px" }}>
+          <svg viewBox="0 0 60 60" width="60" height="60" style={{ position: "absolute" }}>
+            <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(163,255,87,0.08)" strokeWidth="2" />
+            <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(163,255,87,0.45)" strokeWidth="2" strokeDasharray="40 124" strokeLinecap="round">
+              <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="4s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(163,255,87,0.15)" strokeWidth="2" strokeDasharray="20 124" strokeLinecap="round">
+              <animateTransform attributeName="transform" type="rotate" from="180 30 30" to="-180 30 30" dur="6s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+        </div>
+
+        <div>
+          <div className="font-mono" style={{ fontSize: "20px", fontWeight: "500", color: "var(--accent-lime)" }}>
+            +{fmt(totalYield)}
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>USDC accrued</div>
         </div>
       </div>
 
-      <div style={{ fontFamily: "monospace", fontSize: "1.6rem", fontWeight: 800, color: ticking ? "#1dbf73" : "white", transition: "color .3s", letterSpacing: "-0.5px" }}>
-        +{fmt(totalYield)} USDC
+      <div style={{ display: "flex", gap: "16px", marginTop: "16px", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
+        <div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>APY</div>
+          <div className="font-mono" style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: "500" }}>{apy.toFixed(2)}%</div>
+        </div>
+        <div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Days active</div>
+          <div className="font-mono" style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: "500" }}>{ageDays.toFixed(2)}</div>
+        </div>
       </div>
-
-      <div style={{ display: "flex", gap: 20, marginTop: 12, flexWrap: "wrap" }}>
-        <Stat label="APY" value={`${apy.toFixed(1)}%`} />
-        <Stat label="Days active" value={ageDays.toFixed(2)} />
-        <Stat label="Yield value" value={`$${totalYield.toFixed(4)}`} />
-      </div>
-
-      <div style={{ marginTop: 12, height: 3, background: "rgba(255,255,255,.1)", borderRadius: 2 }}>
-        <div style={{ height: "100%", width: `${Math.min(100, (ageDays / 30) * 100)}%`, background: "linear-gradient(90deg, #1dbf73, #00d4ff)", borderRadius: 2, transition: "width 1s ease" }} />
-      </div>
-      <div style={{ fontSize: "0.7rem", color: demoMode ? "rgba(255,255,255,.4)" : "#1dbf73", marginTop: 6, textAlign: "right", fontWeight: demoMode ? 400 : 700 }}>
-        {demoMode ? "Simulated Bridge · Demo Mode" : "Real Yield · Solana CLMM"}
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }) {
-  return (
-    <div>
-      <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,.45)", fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "rgba(255,255,255,.85)" }}>{value}</div>
     </div>
   );
 }

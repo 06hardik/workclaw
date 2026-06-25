@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { useWs } from "../context/WsContext";
 import { getAgentLogs, getPlatformStats } from "../utils/api";
-import AgentActivityFeed from "../components/agent/AgentActivityFeed";
+import { Link } from "react-router-dom";
+import { shortAddress } from "../utils/wallet";
+
+const ACTION_COLORS = {
+  DEPLOY_YIELD: "#00E5FF",
+  RELEASE_FUNDS: "#A3FF57",
+  CLAIM_YIELD: "#A3FF57",
+  VERIFY_DELIVERABLE: "#8B9BAD",
+  SCORE_DELIVERABLE: "#8B9BAD",
+  RESOLVE_DISPUTE: "#FFB830",
+  REJECT_DELIVERABLE: "#FF4757",
+  WARN_USER: "#FF4757"
+};
 
 export default function AgentActivity() {
   const [logs, setLogs] = useState([]);
@@ -26,59 +38,137 @@ export default function AgentActivity() {
 
   return (
     <div className="container-sm page">
-      <div className="flex" style={{ justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
-        <h1>🤖 Agent Activity</h1>
-        <span className={`badge ${connected ? "badge-green" : "badge-gray"}`}>
-          {connected ? "🟢 Live" : "⚪ Connecting..."}
-        </span>
+      {/* Page Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "32px", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontWeight: "700", fontSize: "28px", color: "var(--text-primary)" }}>
+            WorkClaw agent
+          </h1>
+          <p style={{ fontSize: "16px", color: "var(--text-secondary)", marginTop: "4px" }}>
+            Live activity feed
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className="pulsing-dot" />
+          <span className="font-mono text-xs" style={{ color: "var(--accent-lime)", fontWeight: "600" }}>
+            AGENT ONLINE
+          </span>
+        </div>
       </div>
-      <p className="text-muted mb-6">
-        A transparent, real-time log of every autonomous decision made by the WorkClaw agent —
-        yield deployments, AI deliverable verifications, fund releases, and dispute resolutions.
-        Every entry is permanently recorded on-chain via AgentLedger (ERC-8004), linked to the
-        agent's identity NFT{stats?.contracts?.agentNFTId ? ` (#${stats.contracts.agentNFTId})` : ""}.
-      </p>
 
       {stats && (
-        <div className="grid-3 mb-6">
-          <StatBox icon="🔒" label="Total Value Escrowed" value={`${stats.totalEscrow.toFixed(2)} USDC`} />
-          <StatBox icon="⚡" label="Total Yield Generated" value={`${stats.totalYield.toFixed(6)} USDC`} />
-          <StatBox icon="⚙️" label="Active Contracts" value={stats.activeContracts} />
-        </div>
-      )}
-
-      {stats?.byreal && (
-        <div className="card mb-6" style={{ background: "linear-gradient(135deg, #0d1b2a, #16283d)", color: "white", border: "none" }}>
-          <div className="flex" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            <div>
-              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#00d4ff", marginBottom: 4 }}>BYREAL POOL</div>
-              <div className="font-bold">{stats.byreal.poolId}</div>
-              <div className="text-sm" style={{ color: "rgba(255,255,255,.6)" }}>{stats.byreal.token} · {stats.byreal.chain}</div>
-            </div>
-            <div className="text-right">
-              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#00d4ff", marginBottom: 4 }}>APY</div>
-              <div className="font-bold" style={{ fontSize: "1.4rem" }}>{stats.byreal.apy.toFixed(1)}%</div>
+        <div className="grid-3" style={{ marginBottom: "32px" }}>
+          <div className="card card-compact" style={{ padding: "16px 20px" }}>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase" }}>Total Value Escrowed</div>
+            <div className="font-mono" style={{ fontSize: "18px", color: "var(--text-primary)", fontWeight: "500", marginTop: "4px" }}>
+              ${stats.totalEscrow.toFixed(2)} USDC
             </div>
           </div>
-          {stats.byreal.demoMode && (
-            <div className="text-xs mt-2" style={{ color: "rgba(255,255,255,.5)" }}>{stats.byreal.bridgeNote}</div>
-          )}
+          <div className="card card-compact" style={{ padding: "16px 20px" }}>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase" }}>Total Yield Generated</div>
+            <div className="font-mono" style={{ fontSize: "18px", color: "var(--accent-lime)", fontWeight: "500", marginTop: "4px" }}>
+              ${stats.totalYield.toFixed(6)} USDC
+            </div>
+          </div>
+          <div className="card card-compact" style={{ padding: "16px 20px" }}>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase" }}>Active Contracts</div>
+            <div className="font-mono" style={{ fontSize: "18px", color: "var(--text-primary)", fontWeight: "500", marginTop: "4px" }}>
+              {stats.activeContracts}
+            </div>
+          </div>
         </div>
       )}
 
-      {loading ? <div className="spinner" style={{ margin: "40px auto" }} /> : <AgentActivityFeed logs={logs} />}
-    </div>
-  );
-}
+      {/* Main Logs Feed */}
+      {loading ? (
+        <div className="skeleton" style={{ height: "400px" }} />
+      ) : logs.length === 0 ? (
+        <div className="card text-center" style={{ padding: "48px 24px" }}>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>The agent is waiting for work to begin. Post a job to activate the agent.</p>
+          <Link to="/post-job" className="btn btn-primary">Post a job →</Link>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {logs.map((log, idx) => {
+            const accentColor = ACTION_COLORS[log.action_type] || "var(--text-secondary)";
+            const ts = log.created_at ? log.created_at * 1000 : log.timestamp || Date.now();
+            
+            // Try parsing score if verifying deliverable
+            let score = null;
+            if (log.action_type === "VERIFY_DELIVERABLE" || log.action_type === "REJECT_DELIVERABLE") {
+              const match = log.reason.match(/score:\s*(\d+)/i) || log.reason.match(/scored\s*(\d+)/i) || log.reason.match(/(\d+)\/100/);
+              if (match) score = parseInt(match[1]);
+            }
 
-function StatBox({ icon, label, value }) {
-  return (
-    <div className="card card-compact flex gap-3">
-      <div style={{ fontSize: "1.6rem" }}>{icon}</div>
-      <div>
-        <div className="font-bold" style={{ fontSize: "1.05rem" }}>{value}</div>
-        <div className="text-xs text-muted">{label}</div>
-      </div>
+            return (
+              <div
+                key={log.id || idx}
+                className="card"
+                style={{
+                  padding: "20px 24px",
+                  borderLeft: `3px solid ${accentColor}`,
+                  borderRadius: "12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px"
+                }}
+              >
+                {/* Row 1: Action badge & Timestamp */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{
+                    fontSize: "11px",
+                    fontWeight: "600",
+                    color: accentColor,
+                    letterSpacing: "1px",
+                    textTransform: "uppercase"
+                  }}>
+                    {log.action_type}
+                  </span>
+                  <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                    {new Date(ts).toLocaleString()}
+                  </span>
+                </div>
+
+                {/* Row 2: Description */}
+                <p style={{ fontFamily: "var(--font-ui)", fontSize: "14px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                  {log.reason}
+                </p>
+
+                {/* Row 3: Score (If present) */}
+                {score !== null && (
+                  <div style={{ alignSelf: "flex-end", display: "flex", alignItems: "baseline", gap: "2px" }}>
+                    <span className="font-mono" style={{ fontSize: "24px", fontWeight: "700", color: score >= 70 ? "var(--accent-lime)" : "var(--accent-red)" }}>
+                      {score}
+                    </span>
+                    <span className="font-mono" style={{ fontSize: "12px", color: "var(--text-muted)" }}>/100</span>
+                  </div>
+                )}
+
+                {/* Row 4: Tx Hash & Link */}
+                {log.on_chain_tx_hash && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: "8px" }}>
+                    <a
+                      href={`https://explorer.sepolia.mantle.xyz/tx/${log.on_chain_tx_hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono"
+                      style={{ fontSize: "11px", color: "var(--accent-cyan)", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                    >
+                      tx: {shortAddress(log.on_chain_tx_hash)} ↗
+                    </a>
+                    {(log.agent_nft_id || log.agentNFTId) && (
+                      <span className="badge" style={{ background: "rgba(168, 85, 247, 0.1)", color: "#c084fc", fontSize: "10px" }}>
+                        Agent NFT #{log.agent_nft_id || log.agentNFTId}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

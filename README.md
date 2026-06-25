@@ -18,17 +18,16 @@
 
 ---
 
-## What is WorkClaw?
-
-WorkClaw is a full-stack Web3 freelance marketplace that combines the familiar UX of Upwork or Fiverr with autonomous on-chain escrow, AI-powered deliverable verification, and cross-chain yield generation via Byreal.
+WorkClaw is a full-stack Web3 freelance marketplace that features a world-class financial terminal interface with autonomous on-chain escrow, AI-powered deliverable verification, and cross-chain yield generation via Byreal.
 
 - **Clients** post jobs and fund a USDC escrow on **Mantle Sepolia**.
-- **Freelancers** browse jobs, submit proposals, and get hired through a clean, responsive marketplace UI.
+- **Freelancers** browse jobs, submit proposals, and get hired through a high-fidelity visual terminal HUD.
 - The **WorkClaw Agent** deploys the escrowed USDC into a **Byreal CLMM pool** (~18.3% APY) the moment the contract is created — so the locked capital earns yield while the work is in progress.
 - When the freelancer submits a deliverable, **Google Gemini 2.0 Flash** scores it 0–100 against the original job scope:
   - **Score ≥ 70** — the agent automatically closes the Byreal position, splits the accrued yield, and releases principal + yield to the freelancer **on-chain, instantly**.
   - **Score < 70** — the contract enters `DISPUTED` state. The client can force-approve, request AI-mediated dispute resolution (which proposes a mathematically fair split), or cancel for a refund.
 - **Every agent decision is permanently logged on-chain** via `AgentLedger.sol` — an ERC-8004-style contract where the agent's identity is an NFT and all reasoning hashes, actions, and outcomes are fully auditable.
+- **Visual Design**: Rebuilt from first principles using custom Space Grotesk and JetBrains Mono typography, a void black visual styling, and a signature dual-revolving SVG Yield Pulse ring to visualize live capital generation.
 
 ---
 
